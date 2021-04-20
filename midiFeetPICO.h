@@ -441,7 +441,7 @@ enum m_core_fifo_D_types {
     setOutPortMode = 0x04, // 0xDDNN1234 - DD=this dtype, NN=dont care, 1234=nibble for each port
     setUpdateRate = 0x05, // 0xDDNNXXXX - DD=this data type, NN=dont care, XXXX=16 bit value
     Out_TR_state = 0x06, // 0xDDNNNNTR - DD = this d_type value, NNNN = ntohing, dont care, T = Tip states, R = ring states
-    EdgeEvent = 0x07, // 0xDDBBSSTR - DD = this d_type, BB = input port num, SS = combined state value, TR = set one to 0b1111 to select which one had the event
+    EdgeEvent = 0x07, // 0xDDBBSSTR - DD = this d_type, BB = input port num, SS = combined state value, TR = set one to 0b1111 to select which one had the event.
 };
 
 struct OutputPortManager {

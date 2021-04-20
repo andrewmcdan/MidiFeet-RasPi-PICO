@@ -10,7 +10,7 @@
 
 i2c_slave_handler slaveHandler = i2c_slave_handler(); // global to pass data into handler function.
 
-// Gets called by timer to poll the i2c hardware for write requests from the Teensy.
+// Gets called by timer to poll the i2c hardware for write requests from the Teensy
 bool check_i2c_slave_request(repeating_timer_t* t) {
     // check HW register to see if the master has addressed this device.
     if (I2C0_PORT->hw->clr_rd_req && slaveHandler.readyToWrite) {
