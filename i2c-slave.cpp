@@ -237,7 +237,6 @@ int main() {
             }
         }
         counting++;
-
         // Have the inputPortManager update all values
         ins.update(); // This updates the states for all 4 input ports
 
