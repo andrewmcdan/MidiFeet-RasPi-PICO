@@ -3,4 +3,10 @@
 /i2c-slave.c
 /PICO midiFeet.code-workspace
 /pico_sdk_import.cmake
-/build/
+/build
+build/i2c_slave_test.bin
+build/i2c_slave_test.elf
+build/i2c_slave_test.dis
+build/i2c_slave_test.elf.map
+build/i2c_slave_test.hex
+build/CMakeFiles/i2c_slave_test.dir/i2c-slave.cpp.obj

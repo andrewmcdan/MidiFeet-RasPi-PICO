@@ -471,6 +471,7 @@ struct OutputPortManager {
     } state;
 };
 
+
 #define NUM_ADC_VALUES_TO_AVERAGE 25
 #define ADC_LOW_THRESHERHOLD 0x0300
 

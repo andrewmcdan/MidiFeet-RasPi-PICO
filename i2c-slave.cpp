@@ -227,6 +227,7 @@ int main() {
     for (uint8_t i = 0; i < 4; i++) {
         currentSensors[i].setCalibration_16V_400mA();
     }
+
     countTo64 counting = countTo64(0, 100);
     while (1) {
         float current = currentSensors[0].getCurrent_mA();
@@ -268,7 +269,6 @@ int main() {
                 {
                     break;
                 }
-                default:
             }
         }
 
