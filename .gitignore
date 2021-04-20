@@ -1,0 +1,5 @@
+/.vscode
+/example.c
+/i2c-slave.c
+/PICO midiFeet.code-workspace
+/pico_sdk_import.cmake
