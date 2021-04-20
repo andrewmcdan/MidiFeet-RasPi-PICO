@@ -7,3 +7,4 @@ PICO midiFeet.code-workspace
 .vscode/settings.json
 i2c-slave.c
 pico_sdk_import.cmake
+/.vscode
