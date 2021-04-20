@@ -734,12 +734,18 @@ public:
         writeRegister(MCP23017_GPPUA, 0x00);
         writeRegister(MCP23017_GPPUB, 0x00);
         uint8_t i = 0;
+
+        // input port pullups
         for (; i < 8; i++) {
             digitalWrite(i, 1);
         }
+        digitalWrite(1, 0);
+
+        // outputports
         for (; i < 16; i++) {
             digitalWrite(i, 0);
         }
+        
     }
     void pinMode(uint8_t p, uint8_t d) {
         updateRegisterBit(p, (d == 1), MCP23017_IODIRA, MCP23017_IODIRB);
@@ -944,7 +950,7 @@ public:
         i2c_write_blocking_until(i2c1, this->ina219_i2caddr, data, 3, true, make_timeout_time_ms(5));
         // Set Config register to take into account the settings above
         uint16_t config = INA219_CONFIG_BVOLTAGERANGE_16V |
-            INA219_CONFIG_GAIN_1_40MV | INA219_CONFIG_BADCRES_9BIT |
+            INA219_CONFIG_GAIN_8_320MV | INA219_CONFIG_BADCRES_9BIT |
             INA219_CONFIG_SADCRES_9BIT_1S_84US |
             INA219_CONFIG_MODE_SANDBVOLT_CONTINUOUS;
         data[0] = INA219_REG_CALIBRATION;
