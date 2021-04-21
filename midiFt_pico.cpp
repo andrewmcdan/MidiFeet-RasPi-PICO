@@ -55,7 +55,7 @@ void core1_entry_i2cSlave() {
                             // if this iteration corresponds to a requested port...
                             if ((portsRequested >> i) & 1) {
                                 // add data to data_out based on port mode
-                                switch (inState.mode) {
+                                switch (inState.mode[i]) {
                                     case input_port_modes::ExpPedalMinMax... input_port_modes::ExpPedalContinuous:
                                         {
                                             slaveHandler.data_out[numBytes] = inState.expValue[i] & 0xff;
@@ -65,18 +65,23 @@ void core1_entry_i2cSlave() {
                                         }
                                     case input_port_modes::SingleButton... input_port_modes::DualButton:
                                         {
-                                            if (numBytes == 1) {
-                                                numBytes++;
-                                            }
+                                            
                                             uint8_t u = 0;
                                             for (; u < 4; u++) {
-                                                slaveHandler.data_out[1] |= ((inState.tipOn[u] ? 1 : 0) << u);
+                                                slaveHandler.data_out[numBytes] |= ((inState.tipOn[u] ? 1 : 0) << u);
                                             }
                                             for (; u < 8; u++) {
-                                                slaveHandler.data_out[1] |= ((inState.ringOn[u] ? 1 : 0) << u);
+                                                slaveHandler.data_out[numBytes] |= ((inState.ringOn[u] ? 1 : 0) << u);
                                             }
+                                            slaveHandler.data_out[numBytes+1]=slaveHandler.data_out[numBytes];
+                                            numBytes+=2;
                                             break;
                                         }
+                                    case input_port_modes::MultiButton:
+                                    {
+                                        //@todo Not sure if this will be implememtned.
+                                        break;
+                                    }
                                     default:
                                         break;
                                 }
@@ -210,9 +215,6 @@ int main() {
     Adafruit_ADS1015 AD_converter1 = Adafruit_ADS1015(I2CADDR_ADC1);
     Adafruit_ADS1015 AD_converter2 = Adafruit_ADS1015(I2CADDR_ADC2);
     MCP23017_Port_Expander PortExpander = MCP23017_Port_Expander();
-    
-    countTo64 counter16 = countTo64(0, 16);
-
     Adafruit_INA219 currentSensors[4] = {
         Adafruit_INA219(I2CADDR_CURR_SENS1),
         Adafruit_INA219(I2CADDR_CURR_SENS2),
@@ -227,7 +229,6 @@ int main() {
     for (uint8_t i = 0; i < 4; i++) {
         currentSensors[i].setCalibration_16V_400mA();
     }
-
     countTo64 counting = countTo64(0, 100);
     while (1) {
         float current = currentSensors[0].getCurrent_mA();
@@ -238,9 +239,9 @@ int main() {
             }
         }
         counting++;
+
         // Have the inputPortManager update all values
         ins.update(); // This updates the states for all 4 input ports
-
 
         // Do the things depending on the current mode
         for (uint8_t port_i = 0; port_i < 4; port_i++) {
@@ -248,6 +249,7 @@ int main() {
                 case input_port_modes::Disabled:
                 {
                     // Do nothing. the port is set to disabled.
+                    // shoud propbably make sure everythign is set to zero or somehting
                     break;
                 }
                 case input_port_modes::SingleButton ... input_port_modes::DualButton:
@@ -259,14 +261,17 @@ int main() {
                 }
                 case input_port_modes::ExpPedalContinuous:
                 {
+                    // Update the other core with a ratio value everytime
                     break;
                 }
                 case input_port_modes::ExpPedalMinMax:
                 {
+                    // update the other core with 1.0 or 0.0 ratio value depending on wether the pedal has hit min/max threshhold.
                     break;
                 }
                 case input_port_modes::MultiButton:
                 {
+                    // @todo not sure if this will be implemented.
                     break;
                 }
             }
@@ -276,11 +281,30 @@ int main() {
 
         // check the multicore fifo for data...
         while (multicore_fifo_rvalid()) {
-            // get the data from thew fifo...
-            multicore_fifo_pop_blocking();
-
-            // And then do something with it. 
-        }
+            // read fifo into uint32
+            uint32_t fifo_in = multicore_fifo_pop_blocking();
+            uint8_t d_type = fifo_in >> 24;
+            // switch/case to do something
+            switch (d_type) {
+                case m_core_fifo_D_types::setInPortMode:
+                    {
+                        // uint8_t 
+                        // ins.modes[0] = newmode;
+                        break;
+                    }
+                case m_core_fifo_D_types::setOutPortMode:
+                    {
+                        break;
+                    }
+                case m_core_fifo_D_types::setUpdateRate:
+                    {
+                        // @todo not sure if this is needed
+                        break;
+                    }
+                default:
+                    break;
+            }
+        } // loop through the entire available fifo. Other core may have stacked updates while this core was busy.
     }
 }
 /*

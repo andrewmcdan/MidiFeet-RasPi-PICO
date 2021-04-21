@@ -365,6 +365,7 @@ public:
     /// is placed into data_in array. Take care to use lock if data is to be
     /// accessed by other core.
     void readDataIn(uint8_t numBytes, bool flush = false) {
+        if(numBytes==0){ return; } // Reading 0 bytes in does nothing.
         while (i2c_get_read_available(i2c0) < numBytes) { } // expect data to show up in i2c HW buffer
         while (dataInLock) { } // wait for lock to be realesed. Should only be set by other core.
         this->dataInLock = true; // lock data_in
@@ -395,20 +396,19 @@ struct TEENSY_I2C {
     };
 
     uint8_t lastInCommand = 0xff;
-    uint8_t numOf_T2P_commands =
-        4; // must reflect the data set in T2P_messageSize.
+    uint8_t numOf_T2P_commands = 4; // must reflect the data set in T2P_messageSize.
     uint8_t T2P_messageSize[4] = { 1, 2, 2, 2 }; // number of data bytes after the command
     enum P2T_REPONSE {
         Acknowledge, InputUpdate = 0b10000000,
     };
 
-    i2c_slave_handler* hand;
+    i2c_slave_handler* handler;
 
-    TEENSY_I2C(i2c_slave_handler& handler) { this->hand = &handler; }
+    TEENSY_I2C(i2c_slave_handler& handler) { this->handler = &handler; }
 
     uint8_t getReadLength() {
       // command<TeensyCommands.numOf_T2P_commands?TeensyCommands.messageSize[command]:0;
-        this->lastInCommand = hand->data_in[0];
+        this->lastInCommand = handler->data_in[0];
         if (this->lastInCommand < numOf_T2P_commands) {
             return T2P_messageSize[this->lastInCommand];
         } else {
@@ -428,7 +428,12 @@ enum input_port_modes {
 };
 
 struct InputPortState {
-    input_port_modes mode;
+    input_port_modes mode[4] = {
+        input_port_modes::Disabled,
+        input_port_modes::Disabled,
+        input_port_modes::Disabled,
+        input_port_modes::Disabled,
+    };
     uint16_t expValue[4] = { 0, 0, 0, 0 };
     bool tipOn[4];
     bool ringOn[4];
@@ -582,14 +587,14 @@ public:
         int32_t vals[NUM_ADC_VALUES_TO_AVERAGE];
         uint8_t vals_i = 0;
         uint8_t vals_num = NUM_ADC_VALUES_TO_AVERAGE;
-        uint32_t avgAdder = 0;
+        int64_t avgAdder = 0;
         int32_t avg = 0;
     public:
         // allows InputPortManager::expState += (uint16_t value)
         // This permits adding to running average easily.
         // i.e. ins.expState[0] += 0x03c8; {OR} ins.expState[0] += (uint16_t)value
         ExtExpPedalState& operator+=(const int val) {
-            if (val > 0) {
+            // if (val > 0) {
                 this->vals[this->vals_i] = val;
                 this->vals_i++;
                 if (this->vals_i >= this->vals_num) { vals_i = 0; }
@@ -598,7 +603,7 @@ public:
                     this->avgAdder += this->vals[i];
                 }
                 this->avg = ((uint32_t)this->avgAdder / (int32_t)this->vals_num);
-            }
+            // }
             return *this;
         }
         // allows (uint16_t) = InputPortManager::expState
