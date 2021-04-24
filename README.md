@@ -11,3 +11,5 @@ This project uses code adapted from Adafruit's libraries:
     Adafruit INA219 Library - https://github.com/adafruit/Adafruit_INA219
   
 Thank you to all the folks at Adafruit that make terrific libraries like these!
+
+This project uses code adapted from http://cplusplus.bordoon.com/namedArrayElements.html
