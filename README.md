@@ -2,7 +2,13 @@
 
 Firmware for Raspbarry Pi Pico in my MidiFeet project. 
 
-This project uses code adapted from Adafruit's libraries: 
+This project uses code adapted from the following sources:
+
+PJRC Teensy - TeensyDuino https://www.pjrc.com/teensy/td_timing_elaspedMillis.html
+
+Named Array Elements - http://cplusplus.bordoon.com/namedArrayElements.html
+
+Adafruit's libraries: 
     
     Adafruit MCP23017 Arduino Library - https://github.com/adafruit/Adafruit-MCP23017-Arduino-Library
     
@@ -11,5 +17,3 @@ This project uses code adapted from Adafruit's libraries:
     Adafruit INA219 Library - https://github.com/adafruit/Adafruit_INA219
   
 Thank you to all the folks at Adafruit that make terrific libraries like these!
-
-This project uses code adapted from http://cplusplus.bordoon.com/namedArrayElements.html
