@@ -9,13 +9,26 @@ project(i2c_slave_test)
 
 pico_sdk_init()
 
-add_executable(i2c_slave_test 
-midiFt_pico.cpp)
+add_executable(i2c_slave_test midiFt_pico.cpp include/midiFeetPICO_lib)
 
 target_link_libraries(i2c_slave_test 
 pico_stdlib 
 hardware_i2c 
+pico_multicore
+)
+
+add_library(midiFeetPICO_lib INTERFACE)
+target_sources(midiFeetPICO_lib INTERFACE
+    ${CMAKE_CURRENT_LIST_DIR}/mysource1.c
+    ${CMAKE_CURRENT_LIST_DIR}/mysource2.c
+)
+
+target_link_libraries(midiFeetPICO_lib INTERFACE 
+pico_stdlib 
+hardware_i2c 
 pico_multicore )
+
+target_include_directories(midiFeetPICO_lib INTERFACE S{CMAKE_CURRENT_LIST_DIR}/include)
 
 pico_enable_stdio_usb(i2c_slave_test 1)
 pico_enable_stdio_uart(i2c_slave_test 0)

@@ -1,42 +1,49 @@
+// ignores most of the code
+// cSpell:ignoreRegExp /(^(?!\s*(\/\/)|(\/\*)).*[;:)}=,{])/gm
+
+// ignores any word in quotes
+// cSpell:ignoreRegExp /\"\S*\"/g
+
+//--- ignores HEX literals
+// cSpell:ignoreRegExp /0x[A-Z]+/g
+
+//--- ignores any preprocessor directive (i.e #define)
+// cSpell:ignoreRegExp /(^#.*)/gm
+
+/// words to ignore
+// cSpell:ignore pico PSRAM btn btns spec'd dbgserPrintln dbgser Println gpio
+
+/// spell check extension defaults to checking each part of camel case words as separate words.
+
 #include <stdio.h>
 #include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/i2c.h"
 #include "pico/binary_info.h"
 #include "pico/multicore.h"
-#include "midiFeetPICO.h"
+#include "include/midiFeetPICO_lib.h"
 #define I2C0_PORT i2c0
 #define I2C1_PORT i2c1
 
-i2c_slave_handler slaveHandler = i2c_slave_handler(); // global to pass data into handler function.
-
-// Gets called by timer to poll the i2c hardware for write requests from the Teensy
-bool check_i2c_slave_request(repeating_timer_t* t) {
-    // check HW register to see if the master has addressed this device.
-    if (I2C0_PORT->hw->clr_rd_req && slaveHandler.readyToWrite) {
-        // HW will hold the bus until the register is reset.
-        hw_clear_bits(I2C_IC_RAW_INTR_STAT_RD_REQ_RESET, I2C0_PORT->hw->clr_rd_req);
-
-        if (slaveHandler.numBytesToWrite > 0) {
-            i2c_write_raw_blocking(I2C0_PORT, slaveHandler.data_out, slaveHandler.numBytesToWrite);
-        } else {
-            i2c_write_raw_blocking(I2C0_PORT, 0, 1);
-        }
-        slaveHandler.readyToWrite = false; // reset flag
-    }
-    return true;
-}
-
 void core1_entry_i2cSlave() {
-    puts("Core #2 started. Setting up timer.");
-    // setup timer to call handler repeatedly. Will wait 100us from completion of last call to next call.
-    repeating_timer_t timer;
-    add_repeating_timer_us(100, check_i2c_slave_request, NULL, &timer);
-
+    puts("\nCore #2 started.\n");
+    i2c_slave_handler slaveHandler = i2c_slave_handler(); // global to pass data into handler function.
     TEENSY_I2C TeensyCommands = TEENSY_I2C(slaveHandler);
     InputPortState inState;
     puts("Entering loop...");
     while (1) {
+        if (I2C0_PORT->hw->clr_rd_req && slaveHandler.readyToWrite) {
+            // HW will hold the bus until the register is reset.
+            hw_clear_bits(I2C_IC_RAW_INTR_STAT_RD_REQ_RESET, I2C0_PORT->hw->clr_rd_req);
+            if (slaveHandler.numBytesToWrite > 0) {
+                i2c_write_raw_blocking(I2C0_PORT, slaveHandler.data_out, slaveHandler.numBytesToWrite);
+            } else {
+                i2c_write_raw_blocking(I2C0_PORT, 0, 1);
+            }
+            slaveHandler.readyToWrite = false; // reset flag
+        }
+
+        // uint64_t timeDiff = absolute_time_diff_us(timeOld,timeNew);
         if (i2c_get_read_available(I2C0_PORT) > 0) {
             // puts("got data on i2c");
             slaveHandler.readDataIn(1); // read one byte from the bus. This first byte sent is the command.
@@ -49,7 +56,7 @@ void core1_entry_i2cSlave() {
                 case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate... 255:
                     {
                         uint8_t portsRequested = TeensyCommands.lastInCommand & 0x0f; // bits 0-3 indicate which ports we want to get info for.
-                        slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::InputUpdate | portsRequested;
+                        slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::InputUpdate | portsRequested | slaveHandler.edgeEvent_F;
                         uint8_t numBytes = 1;
                         for (uint8_t i = 0; i < 4; i++) {
                             // if this iteration corresponds to a requested port...
@@ -65,7 +72,7 @@ void core1_entry_i2cSlave() {
                                         }
                                     case input_port_modes::SingleButton... input_port_modes::DualButton:
                                         {
-                                            
+
                                             uint8_t u = 0;
                                             for (; u < 4; u++) {
                                                 slaveHandler.data_out[numBytes] |= ((inState.tipOn[u] ? 1 : 0) << u);
@@ -73,15 +80,15 @@ void core1_entry_i2cSlave() {
                                             for (; u < 8; u++) {
                                                 slaveHandler.data_out[numBytes] |= ((inState.ringOn[u] ? 1 : 0) << u);
                                             }
-                                            slaveHandler.data_out[numBytes+1]=slaveHandler.data_out[numBytes];
-                                            numBytes+=2;
+                                            slaveHandler.data_out[numBytes + 1] = slaveHandler.data_out[numBytes];
+                                            numBytes += 2;
                                             break;
                                         }
                                     case input_port_modes::MultiButton:
-                                    {
-                                        //@todo Not sure if this will be implememtned.
-                                        break;
-                                    }
+                                        {
+                                            //@todo Not sure if this will be implememtned.
+                                            break;
+                                        }
                                     default:
                                         break;
                                 }
@@ -98,7 +105,7 @@ void core1_entry_i2cSlave() {
                     {
                         // if the fifo is full, we need to wait until there's room for the data or it could be lost.
                         // puts("got output update. flushing fifo.");
-                        while (!multicore_fifo_wready()) {}
+                        while (!multicore_fifo_wready()) { }
                         // puts("sending to fifo.");
                         multicore_fifo_push_blocking(slaveHandler.data_in[0] | (m_core_fifo_D_types::Out_TR_state << 24));
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::Acknowledge;
@@ -110,18 +117,18 @@ void core1_entry_i2cSlave() {
                     {
                         uint16_t data16 = slaveHandler.data_in[0] | (slaveHandler.data_in[1] << 8);
                         // if the fifo is full, we need to wait until there's room for the data or it could be lost.
-                        while (!multicore_fifo_wready()) {}
+                        while (!multicore_fifo_wready()) { }
                         multicore_fifo_push_blocking(data16 | (m_core_fifo_D_types::setInPortMode << 24));
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::Acknowledge;
                         slaveHandler.numBytesToWrite = 1;
-                        slaveHandler.readyToWrite = true;
+                        slaveHandler.readyToWrite = true; 
                         break;
                     }
                 case TEENSY_I2C::T2P_COMMMANDS::SetInputUpdateRate:
                     {
                         uint16_t data16 = slaveHandler.data_in[0] | (slaveHandler.data_in[1] << 8);
                         // if the fifo is full, we need to wait until there's room for the data or it could be lost.
-                        while (!multicore_fifo_wready()) {}
+                        while (!multicore_fifo_wready()) { }
                         multicore_fifo_push_blocking(data16 | (m_core_fifo_D_types::setUpdateRate << 24));
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::Acknowledge;
                         slaveHandler.numBytesToWrite = 1;
@@ -132,7 +139,7 @@ void core1_entry_i2cSlave() {
                     {
                         uint16_t data16 = slaveHandler.data_in[0] | (slaveHandler.data_in[1] << 8);
                         // if the fifo is full, we need to wait until there's room for the data or it could be lost.
-                        while (!multicore_fifo_wready()) {}
+                        while (!multicore_fifo_wready()) { }
                         multicore_fifo_push_blocking(data16 | (m_core_fifo_D_types::setOutPortMode << 24));
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::Acknowledge;
                         slaveHandler.numBytesToWrite = 1;
@@ -171,18 +178,19 @@ void core1_entry_i2cSlave() {
                         }
                         break;
                     }
+                case m_core_fifo_D_types::EdgeEvent:
+                    {
+                        if ((fifo_in & 0xff) > 0) {
+                            slaveHandler.edgeEvent_F = i2c_slave_handler::Edge_Event_FLAG::edge_detected;
+                        } else {
+                            slaveHandler.edgeEvent_F = i2c_slave_handler::Edge_Event_FLAG::edge_not_detected;
+                        }
+                    }
                 default:
                     break;
             }
         } // loop through the entire available fifo. Other core may have stacked updates while this core was busy.
     }     // main loop for core 1
-}
-
-bool readADCandPrint(repeating_timer_t* t) {
-    // printf("gpio8: %d\r\n\r\n",gpio_get(8));
-    // printf("\r\n");
-
-    return true;
 }
 
 int main() {
@@ -191,8 +199,8 @@ int main() {
     i2c_set_slave_mode(I2C0_PORT, true, 0x5a);
     gpio_set_function(4, GPIO_FUNC_I2C);
     gpio_set_function(5, GPIO_FUNC_I2C);
-    gpio_pull_up(4);
-    gpio_pull_up(5);
+    // gpio_pull_up(4);
+    // gpio_pull_up(5);
     i2c_init(I2C1_PORT, 400 * 1000);
     gpio_set_function(2, GPIO_FUNC_I2C);
     gpio_set_function(3, GPIO_FUNC_I2C);
@@ -203,11 +211,11 @@ int main() {
         gpio_set_dir(i, GPIO_IN);
         gpio_pull_up(i);
     }
-    sleep_ms(3000);
-    
+    // sleep_ms(1000);
+
     puts("starting second core\r\n");
     multicore_launch_core1(core1_entry_i2cSlave);
-    // flush the fifo
+    // flush the multicore fifo
     while (multicore_fifo_rvalid()) {
         multicore_fifo_pop_blocking();
         puts(".");
@@ -222,7 +230,12 @@ int main() {
         Adafruit_INA219(I2CADDR_CURR_SENS4),
     };
     PortExpander.begin();
-    OutputPortManager outs[4];
+    OutputPortManager outs[4] = {
+        OutputPortManager(PortExpander,0),
+        OutputPortManager(PortExpander,1),
+        OutputPortManager(PortExpander,2),
+        OutputPortManager(PortExpander,3),
+    };
     InputPortManager ins = InputPortManager(AD_converter1, AD_converter2);
     repeating_timer_t timer;
     // add_repeating_timer_ms(1000, readADCandPrint, NULL, &timer);
@@ -230,54 +243,88 @@ int main() {
         currentSensors[i].setCalibration_16V_400mA();
     }
     countTo64 counting = countTo64(0, 100);
+    countTo64 countedCounter;
+    // absolute_time_t timeOld = get_absolute_time();
+    // absolute_time_t timeNew = get_absolute_time();
+    // uint64_t largestTime = 0;
     while (1) {
-        float current = currentSensors[0].getCurrent_mA();
+        // timeOld = timeNew;
+        // timeNew = get_absolute_time();
+        // float current = currentSensors[0].getCurrent_mA();
         if (counting == 0) {
-            printf("\r\ncurrent current in ma: %f",current);
-            for( int i = 0; i < 8; i ++){
-                printf("\ncurrent avergae for pedal%i: %i",i , ins.expPedals[i]);
+            // printf("\r\ncurrent current in ma: %f",current);
+            // for( int i = 0; i < 8; i ++){
+            //     printf("\ncurrent average for pedal%i: %i",i , ins.expPedals[i]);
+            // }
+            // uint64_t timeDiff = absolute_time_diff_us(timeOld,timeNew);
+            // if(timeDiff > largestTime)
+            //     largestTime = timeDiff;
+            // printf("time: %lld\t\tlargest:%lld\n",timeDiff,largestTime);
+            countedCounter++;
+            if (countedCounter == 0) {
+                printf("\n");
             }
+            printf(".");
         }
         counting++;
 
-        // Have the inputPortManager update all values
-        ins.update(); // This updates the states for all 4 input ports
+        // Have the inputPortManager update all values. update() will return uint8_t based on number of inputs with edge event
+        uint8_t edges = ins.update();
+        if (edges > 0) { // This updates the states for all 4 input ports
+            while (!multicore_fifo_wready()) { }
+            multicore_fifo_push_blocking((m_core_fifo_D_types::EdgeEvent << 24) | edges);
+        }
 
         // Do the things depending on the current mode
         for (uint8_t port_i = 0; port_i < 4; port_i++) {
-            switch ( ins.modes[port_i] ) {
+            switch (ins.modes[port_i]) {
                 case input_port_modes::Disabled:
-                {
-                    // Do nothing. the port is set to disabled.
-                    // shoud propbably make sure everythign is set to zero or somehting
-                    break;
-                }
+                    {
+                        // Do nothing. the port is set to disabled.
+                        break;
+                    }
                 case input_port_modes::SingleButton ... input_port_modes::DualButton:
-                {
-                    // Read tip state
-                    // Read ring state
-                    // send the update to the other core
-                    break;
-                }
+                    {
+                        // Get combined state and
+                        // send the update to the other core
+
+                        uint32_t fifo_out = 0;
+                        if ((ins.tipRingEdgeTrack[port_i].combSt & 0xf0) == combinedState::state_OPEN_pluggedIn) {
+                            fifo_out |= 1 << port_i;
+                        }
+                        if ((ins.tipRingEdgeTrack[port_i + 4].combSt & 0xf0) == combinedState::state_OPEN_pluggedIn) {
+                            fifo_out |= 1 << (port_i + 4);
+                        }
+
+                        while (!multicore_fifo_wready()) { }
+                        multicore_fifo_push_blocking((m_core_fifo_D_types::In_TR_state << 24) | fifo_out);
+
+                        break;
+                    }
                 case input_port_modes::ExpPedalContinuous:
-                {
-                    // Update the other core with a ratio value everytime
-                    break;
-                }
+                    {
+                        // calculate ratio for port. ratio is scaled up to avoid floating point math. 
+                        // -1 at end to offset some error.
+                        uint32_t ratio = (((uint32_t)ins.expPedals[(port_i * 2) + 1] * 10000) / ins.expPedals[(port_i * 2)]) - 1;
+                        // Update the other core with a ratio value everytime
+                        if (counting == 0)
+                            // printf("\nratio: %d\n",ratio);
+                            break;
+                    }
                 case input_port_modes::ExpPedalMinMax:
-                {
-                    // update the other core with 1.0 or 0.0 ratio value depending on wether the pedal has hit min/max threshhold.
-                    break;
-                }
+                    {
+                        // update the other core with 1.0 or 0.0 ratio value depending on wether the pedal has hit min/max threshhold.
+                        break;
+                    }
                 case input_port_modes::MultiButton:
-                {
-                    // @todo not sure if this will be implemented.
-                    break;
-                }
+                    {
+                        // @todo not sure if this will be implemented.
+                        break;
+                    }
             }
         }
 
-        outs[0].state = OutputPortManager::OutPortState::out_port_state::Off;
+        // outs[0].state = OutputPortManager::OutPortState::out_port_state::Off;
 
         // check the multicore fifo for data...
         while (multicore_fifo_rvalid()) {
@@ -285,6 +332,7 @@ int main() {
             uint32_t fifo_in = multicore_fifo_pop_blocking();
             uint8_t d_type = fifo_in >> 24;
             // switch/case to do something
+            // printf("d_type: %x", d_type);
             switch (d_type) {
                 case m_core_fifo_D_types::setInPortMode:
                     {
@@ -299,6 +347,19 @@ int main() {
                 case m_core_fifo_D_types::setUpdateRate:
                     {
                         // @todo not sure if this is needed
+                        break;
+                    }
+                case m_core_fifo_D_types::Out_TR_state:
+                    {
+                        uint8_t TR_states = fifo_in & 0xff;
+                        printf("\nTR update: %x\n",TR_states);
+                        for(uint8_t i=0; i< 4; i++){
+                            // outs[i].state = OutputPortManager::OutPortState::out_port_state::Off;
+                            outs[i].state.Ring_on_b = (TR_states&1)==1;
+                            outs[i].state.Tip_on_b = (TR_states>>4)&1==1;
+                            TR_states >>= 1;
+                            outs[i].UpdateOutput();
+                        }
                         break;
                     }
                 default:

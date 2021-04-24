@@ -1,3 +1,21 @@
+// ignores most of the code
+// cSpell:ignoreRegExp /(^(?!\s*(\/\/)|(\/\*)).*[;:)}=,{])/gm
+
+// ignores any word in quotes
+// cSpell:ignoreRegExp /\"\S*\"/g
+
+//--- ignores HEX literals
+// cSpell:ignoreRegExp /0x[A-Z]+/g
+
+//--- ignores any preprocessor directive (i.e #define)
+// cSpell:ignoreRegExp /(^#.*)/gm
+
+/// words to ignore
+// cSpell:ignore pico PSRAM btn btns spec'd dbgserPrintln dbgser Println gpio ADCs VBUS VSHUNT RSHUNT LSBs BVOLTAGERANGE BADCRES SADCRES CNVR
+
+/// spell check extension defaults to checking each part of camel case words as separate words.
+
+
 #include "hardware/i2c.h"
 #include "hardware/irq.h"
 #include "pico/binary_info.h"
@@ -22,8 +40,7 @@
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
 #define bitSet(value, bit) ((value) |= (1UL << (bit)))
 #define bitClear(value, bit) ((value) &= ~(1UL << (bit)))
-#define bitWrite(value, bit, bitvalue)                                         \
-  ((bitvalue) ? bitSet((value), (bit)) : bitClear((value), (bit)))
+#define bitWrite(value, bit, bitvalue) ((bitvalue) ? bitSet((value), (bit)) : bitClear((value), (bit)))
 /*#endregion*/
 
 /*#region defines for ADS1015*/
@@ -43,21 +60,14 @@
     CONFIG REGISTER
     -----------------------------------------------------------------------*/
 #define ADS1X15_REG_CONFIG_OS_MASK (0x8000) ///< OS Mask
-#define ADS1X15_REG_CONFIG_OS_SINGLE                                           \
-  (0x8000) ///< Write: Set to start a single-conversion
-#define ADS1X15_REG_CONFIG_OS_BUSY                                             \
-  (0x0000) ///< Read: Bit = 0 when conversion is in progress
-#define ADS1X15_REG_CONFIG_OS_NOTBUSY                                          \
-  (0x8000) ///< Read: Bit = 1 when device is not performing a conversion
+#define ADS1X15_REG_CONFIG_OS_SINGLE (0x8000) ///< Write: Set to start a single-conversion
+#define ADS1X15_REG_CONFIG_OS_BUSY (0x0000) ///< Read: Bit = 0 when conversion is in progress
+#define ADS1X15_REG_CONFIG_OS_NOTBUSY (0x8000) ///< Read: Bit = 1 when device is not performing a conversion
 #define ADS1X15_REG_CONFIG_MUX_MASK (0x7000) ///< Mux Mask
-#define ADS1X15_REG_CONFIG_MUX_DIFF_0_1                                        \
-  (0x0000) ///< Differential P = AIN0, N = AIN1 (default)
-#define ADS1X15_REG_CONFIG_MUX_DIFF_0_3                                        \
-  (0x1000) ///< Differential P = AIN0, N = AIN3
-#define ADS1X15_REG_CONFIG_MUX_DIFF_1_3                                        \
-  (0x2000) ///< Differential P = AIN1, N = AIN3
-#define ADS1X15_REG_CONFIG_MUX_DIFF_2_3                                        \
-  (0x3000) ///< Differential P = AIN2, N = AIN3
+#define ADS1X15_REG_CONFIG_MUX_DIFF_0_1 (0x0000) ///< Differential P = AIN0, N = AIN1 (default)
+#define ADS1X15_REG_CONFIG_MUX_DIFF_0_3 (0x1000) ///< Differential P = AIN0, N = AIN3
+#define ADS1X15_REG_CONFIG_MUX_DIFF_1_3 (0x2000) ///< Differential P = AIN1, N = AIN3
+#define ADS1X15_REG_CONFIG_MUX_DIFF_2_3 (0x3000) ///< Differential P = AIN2, N = AIN3
 #define ADS1X15_REG_CONFIG_MUX_SINGLE_0 (0x4000) ///< Single-ended AIN0
 #define ADS1X15_REG_CONFIG_MUX_SINGLE_1 (0x5000) ///< Single-ended AIN1
 #define ADS1X15_REG_CONFIG_MUX_SINGLE_2 (0x6000) ///< Single-ended AIN2
@@ -65,39 +75,28 @@
 #define ADS1X15_REG_CONFIG_PGA_MASK (0x0E00)     ///< PGA Mask
 #define ADS1X15_REG_CONFIG_PGA_6_144V (0x0000)   ///< +/-6.144V range = Gain 2/3
 #define ADS1X15_REG_CONFIG_PGA_4_096V (0x0200)   ///< +/-4.096V range = Gain 1
-#define ADS1X15_REG_CONFIG_PGA_2_048V                                          \
-  (0x0400) ///< +/-2.048V range = Gain 2 (default)
+#define ADS1X15_REG_CONFIG_PGA_2_048V (0x0400) ///< +/-2.048V range = Gain 2 (default)
 #define ADS1X15_REG_CONFIG_PGA_1_024V (0x0600)  ///< +/-1.024V range = Gain 4
 #define ADS1X15_REG_CONFIG_PGA_0_512V (0x0800)  ///< +/-0.512V range = Gain 8
 #define ADS1X15_REG_CONFIG_PGA_0_256V (0x0A00)  ///< +/-0.256V range = Gain 16
 #define ADS1X15_REG_CONFIG_MODE_MASK (0x0100)   ///< Mode Mask
 #define ADS1X15_REG_CONFIG_MODE_CONTIN (0x0000) ///< Continuous conversion mode
-#define ADS1X15_REG_CONFIG_MODE_SINGLE                                         \
-  (0x0100) ///< Power-down single-shot mode (default)
+#define ADS1X15_REG_CONFIG_MODE_SINGLE (0x0100) ///< Power-down single-shot mode (default)
 #define ADS1X15_REG_CONFIG_RATE_MASK (0x00E0)  ///< Data Rate Mask
 #define ADS1X15_REG_CONFIG_CMODE_MASK (0x0010) ///< CMode Mask
-#define ADS1X15_REG_CONFIG_CMODE_TRAD                                          \
-  (0x0000) ///< Traditional comparator with hysteresis (default)
+#define ADS1X15_REG_CONFIG_CMODE_TRAD (0x0000) ///< Traditional comparator with hysteresis (default)
 #define ADS1X15_REG_CONFIG_CMODE_WINDOW (0x0010) ///< Window comparator
 #define ADS1X15_REG_CONFIG_CPOL_MASK (0x0008)    ///< CPol Mask
-#define ADS1X15_REG_CONFIG_CPOL_ACTVLOW                                        \
-  (0x0000) ///< ALERT/RDY pin is low when active (default)
-#define ADS1X15_REG_CONFIG_CPOL_ACTVHI                                         \
-  (0x0008) ///< ALERT/RDY pin is high when active
-#define ADS1X15_REG_CONFIG_CLAT_MASK                                           \
-  (0x0004) ///< Determines if ALERT/RDY pin latches once asserted
-#define ADS1X15_REG_CONFIG_CLAT_NONLAT                                         \
-  (0x0000) ///< Non-latching comparator (default)
+#define ADS1X15_REG_CONFIG_CPOL_ACTVLOW (0x0000) ///< ALERT/RDY pin is low when active (default)
+#define ADS1X15_REG_CONFIG_CPOL_ACTVHI (0x0008) ///< ALERT/RDY pin is high when active
+#define ADS1X15_REG_CONFIG_CLAT_MASK (0x0004) ///< Determines if ALERT/RDY pin latches once asserted
+#define ADS1X15_REG_CONFIG_CLAT_NONLAT (0x0000) ///< Non-latching comparator (default)
 #define ADS1X15_REG_CONFIG_CLAT_LATCH (0x0004) ///< Latching comparator
 #define ADS1X15_REG_CONFIG_CQUE_MASK (0x0003)  ///< CQue Mask
-#define ADS1X15_REG_CONFIG_CQUE_1CONV                                          \
-  (0x0000) ///< Assert ALERT/RDY after one conversions
-#define ADS1X15_REG_CONFIG_CQUE_2CONV                                          \
-  (0x0001) ///< Assert ALERT/RDY after two conversions
-#define ADS1X15_REG_CONFIG_CQUE_4CONV                                          \
-  (0x0002) ///< Assert ALERT/RDY after four conversions
-#define ADS1X15_REG_CONFIG_CQUE_NONE                                           \
-  (0x0003) ///< Disable the comparator and put ALERT/RDY in high state (default)
+#define ADS1X15_REG_CONFIG_CQUE_1CONV (0x0000) ///< Assert ALERT/RDY after one conversions
+#define ADS1X15_REG_CONFIG_CQUE_2CONV (0x0001) ///< Assert ALERT/RDY after two conversions
+#define ADS1X15_REG_CONFIG_CQUE_4CONV (0x0002) ///< Assert ALERT/RDY after four conversions
+#define ADS1X15_REG_CONFIG_CQUE_NONE (0x0003) ///< Disable the comparator and put ALERT/RDY in high state (default)
 /*=========================================================================*/
 
 /** Gain settings */
@@ -128,6 +127,118 @@ typedef enum {
 #define RATE_ADS1115_860SPS (0x00E0) ///< 860 samples per second
 /*#endregion*/
 
+/*#region: defines*/
+#define MCP23017_IODIRA 0x00   //!< I/O direction register A
+#define MCP23017_IPOLA 0x02    //!< Input polarity port register A
+#define MCP23017_GPINTENA 0x04 //!< Interrupt-on-change pins A
+#define MCP23017_DEFVALA 0x06  //!< Default value register A
+#define MCP23017_INTCONA 0x08  //!< Interrupt-on-change control register A
+#define MCP23017_IOCONA 0x0A   //!< I/O expander configuration register A
+#define MCP23017_GPPUA 0x0C    //!< GPIO pull-up resistor register A
+#define MCP23017_INTFA 0x0E    //!< Interrupt flag register A
+#define MCP23017_INTCAPA 0x10  //!< Interrupt captured value for port register A
+#define MCP23017_GPIOA 0x12    //!< General purpose I/O port register A
+#define MCP23017_OLATA 0x14    //!< Output latch register 0 A
+
+#define MCP23017_IODIRB 0x01   //!< I/O direction register B
+#define MCP23017_IPOLB 0x03    //!< Input polarity port register B
+#define MCP23017_GPINTENB 0x05 //!< Interrupt-on-change pins B
+#define MCP23017_DEFVALB 0x07  //!< Default value register B
+#define MCP23017_INTCONB 0x09  //!< Interrupt-on-change control register B
+#define MCP23017_IOCONB 0x0B   //!< I/O expander configuration register B
+#define MCP23017_GPPUB 0x0D    //!< GPIO pull-up resistor register B
+#define MCP23017_INTFB 0x0F    //!< Interrupt flag register B
+#define MCP23017_INTCAPB 0x11  //!< Interrupt captured value for port register B
+#define MCP23017_GPIOB 0x13    //!< General purpose I/O port register B
+#define MCP23017_OLATB 0x15    //!< Output latch register 0 B
+
+#define MCP23017_INT_ERR 255 //!< Interrupt error
+/*#endregion*/
+
+class MCP23017_Port_Expander {
+public:
+    uint16_t error = 0;
+    MCP23017_Port_Expander() { }
+    void begin() {
+      // set defaults!
+      // all outputs on port A and B
+        writeRegister(MCP23017_IODIRA, 0x00);
+        writeRegister(MCP23017_IODIRB, 0x00);
+        // Turn off interrupt triggers
+        writeRegister(MCP23017_GPINTENA, 0x00);
+        writeRegister(MCP23017_GPINTENB, 0x00);
+        // Turn off pull up resistors
+        writeRegister(MCP23017_GPPUA, 0x00);
+        writeRegister(MCP23017_GPPUB, 0x00);
+        uint8_t i = 0;
+
+        // input port pullups
+        for (; i < 8; i++) {
+            digitalWrite(i, 1);
+        }
+        digitalWrite(1, 0);
+
+        // outputports
+        for (; i < 16; i++) {
+            digitalWrite(i, 0);
+        }
+
+    }
+    void pinMode(uint8_t p, uint8_t d) {
+        updateRegisterBit(p, (d == 1), MCP23017_IODIRA, MCP23017_IODIRB);
+    }
+    void writeGPIOAB(uint16_t ba) {
+        uint8_t data[3] = { MCP23017_GPIOA, uint8_t(ba & 0x00ff), uint8_t(ba >> 8) };
+        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 3, false, make_timeout_time_ms(transferTimeout_ms));
+    }
+    void digitalWrite(uint8_t pin, uint8_t d) {
+        uint8_t gpio;
+        uint8_t bit = bitForPin(pin);
+        // read the current GPIO output latches
+        uint8_t regAddr = regForPin(pin, MCP23017_OLATA, MCP23017_OLATB);
+        gpio = readRegister(regAddr);
+        // set the pin and direction
+        bitWrite(gpio, bit, d);
+        // write the new GPIO
+        regAddr = regForPin(pin, MCP23017_GPIOA, MCP23017_GPIOB);
+        writeRegister(regAddr, gpio);
+        if (pin < 8)
+            bitSet(portA_state, pin);
+        else
+            bitSet(portB_state, pin - 8);
+    }
+
+private:
+    uint8_t portA_state = 0;
+    uint8_t portB_state = 0;
+    uint32_t transferTimeout_ms = 1000;
+    uint8_t bitForPin(uint8_t pin) { return pin % 8; }
+    uint8_t regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr) {
+        return (pin < 8) ? portAaddr : portBaddr;
+    }
+    uint8_t readRegister(uint8_t addr) {
+      // printf("readReg\r\n");
+        uint8_t data[1] = { addr };
+        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 1, false, make_timeout_time_ms(transferTimeout_ms));
+        i2c_read_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 1, false, make_timeout_time_ms(transferTimeout_ms));
+        return data[0];
+    }
+    void writeRegister(uint8_t regAddr, uint8_t regValue) {
+      // printf("writeReg\r\n");
+      // Write the register
+        uint8_t data[2] = { regAddr, regValue };
+        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 2, false, make_timeout_time_ms(transferTimeout_ms));
+    }
+    void updateRegisterBit(uint8_t pin, uint8_t pValue, uint8_t portAaddr, uint8_t portBaddr) {
+        uint8_t regValue;
+        uint8_t regAddr = regForPin(pin, portAaddr, portBaddr);
+        uint8_t bit = bitForPin(pin);
+        regValue = readRegister(regAddr);
+        // set the value for the particular bit
+        bitWrite(regValue, bit, pValue);
+        writeRegister(regAddr, regValue);
+    }
+};
 class Adafruit_ADS1015 {
 protected:
   // Instance-specific properties
@@ -360,14 +471,18 @@ public:
     uint8_t numBytesToWrite = 0;
     bool readyToWrite = false;
     bool dataInLock = false;
+    enum Edge_Event_FLAG : uint8_t {
+        edge_detected = 0b00010000,
+        edge_not_detected = 0
+    }edgeEvent_F = edge_not_detected;
     ///\brief Blocks until numBytes number of bytes has been read from the i2c
     /// bus. Data the is read in form the bus
     /// is placed into data_in array. Take care to use lock if data is to be
     /// accessed by other core.
     void readDataIn(uint8_t numBytes, bool flush = false) {
-        if(numBytes==0){ return; } // Reading 0 bytes in does nothing.
+        if (numBytes == 0) { return; } // Reading 0 bytes in does nothing.
         while (i2c_get_read_available(i2c0) < numBytes) { } // expect data to show up in i2c HW buffer
-        while (dataInLock) { } // wait for lock to be realesed. Should only be set by other core.
+        while (dataInLock) { } // wait for lock to be released. Should only be set by other core.
         this->dataInLock = true; // lock data_in
         i2c_read_raw_blocking(i2c0, this->data_in, numBytes);
         this->dataInLock = false; // unlock data_in
@@ -450,6 +565,11 @@ enum m_core_fifo_D_types {
 };
 
 struct OutputPortManager {
+private:
+    // static uint8_t nextID;
+    uint8_t id;
+    MCP23017_Port_Expander* expander;
+public:
     enum out_port_modes {
         SingleOutput = 0x00,
         DualOutput = 0x01,
@@ -463,7 +583,10 @@ struct OutputPortManager {
             Ring_On = 0xf0,
             TR_On = 0xff,
             Off = 0x00,
-        } currState;
+        };
+        bool Tip_on_b = false;
+        bool Ring_on_b = false;
+        uint8_t  currState = out_port_state::Off;
         // overload " = " sign so that currState can be set more easily.
         OutPortState& operator=(const int& rhs) {
             currState = out_port_state(rhs);
@@ -474,17 +597,37 @@ struct OutputPortManager {
             return *this;
         }
     } state;
+
+    OutputPortManager(MCP23017_Port_Expander& exp, uint8_t _id) :expander(&exp), id(_id) { }
+    void UpdateOutput() {
+        printf("writing to port# %i\t value:%s\n", (this->id * 2) + 8, this->state.Tip_on_b ? "true" : "false");
+        printf("writing to port# %i\t value:%s\n", (this->id * 2) + 9, this->state.Ring_on_b ? "true" : "false");
+        expander->digitalWrite((this->id * 2) + 8, this->state.Tip_on_b ? 1 : 0);
+        expander->digitalWrite((this->id * 2) + 9, this->state.Ring_on_b ? 1 : 0);
+    }
+
 };
+
+// uint8_t OutputPortManager::nextID = 0;
 
 
 #define NUM_ADC_VALUES_TO_AVERAGE 25
 #define ADC_LOW_THRESHERHOLD 0x0300
 
+enum combinedState {
+    fallingEdgeEvent = 0x01,
+    risingEdgeEvent = 0x02,
+    state_OPEN_pluggedIn = 0x10,  // reads high, something is plugged in
+    state_CLOSED_unplugged = 0x20, // reads low, nothing plugged in
+    state_OPEN_buttonPressed = state_OPEN_pluggedIn,
+    state_CLOSED_buttonNotPressed = state_CLOSED_unplugged,
+};
+
 // @label InputPortManager struct
 struct InputPortManager {
 private:
     struct Input_debounce_edge_state_tracker {
-        private:
+    private:
         bool edgeEvent = false;
 
         uint64_t eventTime;
@@ -495,7 +638,7 @@ private:
         // be based on how often the value is updated.
         uint32_t trackLSB = 0;
         uint32_t trackMSB = 0;
-        
+
 
         uint8_t countBits() {
             uint32_t temp = this->trackLSB;
@@ -539,18 +682,13 @@ private:
                 updateEdgeTracker(val);
             }
         }
-        
-        public:
-        enum combinedState {
-            fallingEdgeEvent = 0x01,
-            risingEdgeEvent = 0x02,
-            state_OPEN_pluggedIn = 0x10,  // reads high, something is plugged in
-            state_CLOSED_unplugged = 0x20 // reads low, nothing plugged in
-        };
-        ///\brief Combined state value. CombSt & 0xf0 returns high / low value, combSt & 0x0f returns edge event type.
-        uint8_t combSt = 0x21;       
 
-        ///\brief Use this method to capture the occurance of an edge event. Returns true if an unprocess edge has occcurred. 
+    public:
+
+    ///\brief Combined state value. CombSt & 0xf0 returns high / low value, combSt & 0x0f returns edge event type.
+        uint8_t combSt = combinedState::state_CLOSED_unplugged | combinedState::fallingEdgeEvent;
+
+        ///\brief Use this method to capture the occurrance of an edge event. Returns true if an unprocessed edge has occurred. 
         /// Calling this methos resets the edgeevent tracker.
         bool getEdgeEvent() {
             if (this->edgeEvent) {
@@ -578,6 +716,7 @@ private:
         return 0;
     }
 public:
+
     ///\brief Keeps track of the ADC values of each input channel (2 channels x 4 ports). Each is a running average
     /// of the last "NUM_ADC_VALUES_TO_AVERAGE" values returned by the ADC (default, 25 values averaged). 
     /// To get the average, use (uint16_t)=<InputPortManager>expPedals[channel]. To add a value, use 
@@ -595,15 +734,15 @@ public:
         // i.e. ins.expState[0] += 0x03c8; {OR} ins.expState[0] += (uint16_t)value
         ExtExpPedalState& operator+=(const int val) {
             // if (val > 0) {
-                this->vals[this->vals_i] = val;
-                this->vals_i++;
-                if (this->vals_i >= this->vals_num) { vals_i = 0; }
-                this->avgAdder = 0;
-                for (uint8_t i = 0;i < this->vals_num;i++) {
-                    this->avgAdder += this->vals[i];
-                }
-                this->avg = ((uint32_t)this->avgAdder / (int32_t)this->vals_num);
-            // }
+            this->vals[this->vals_i] = val;
+            this->vals_i++;
+            if (this->vals_i >= this->vals_num) { vals_i = 0; }
+            this->avgAdder = 0;
+            for (uint8_t i = 0;i < this->vals_num;i++) {
+                this->avgAdder += this->vals[i];
+            }
+            this->avg = ((uint32_t)this->avgAdder / (int32_t)this->vals_num);
+        // }
             return *this;
         }
         // allows (uint16_t) = InputPortManager::expState
@@ -613,22 +752,24 @@ public:
             return this->avg;
         }
     } expPedals[8]; // we have 8 to keep track of the high side reading as well as the pedal reading.
-    // keeping track of each port's mode. Defualts to disabled.
+    // keeping track of each port's mode. Defaults to disabled.
     uint8_t modes[4] = {
-        input_port_modes::Disabled,
-        input_port_modes::Disabled,
-        input_port_modes::Disabled,
-        input_port_modes::Disabled
+        input_port_modes::DualButton,
+        input_port_modes::DualButton,
+        input_port_modes::DualButton,
+        input_port_modes::DualButton
     };
     ///\brief Update the InputPortManager. Call this often to keep up to date data (as up to date as possible at least)
     /// in the various objects within InputPortManager. 
-    void update() {
-        uint8_t i;
+    uint8_t update() {
+        // value to return
+        uint8_t edgeEvent_R = false;
+
         // check sense lines to see if a port has something plugged in or not.
-        // if something was plugged in now and wasnt before, see if the mode for the
+        // if something was plugged in now and wasn't before, see if the mode for the
         // port is auto, and if so suss out the mode.
 
-        for (i = 0; i < 8; i++) {
+        for (uint8_t i = 0; i < 8; i++) {
             senseEdgeTack[i] += gpio_get(8 + i);
             if (senseEdgeTack[i].getEdgeEvent()) {
                 printf("\r\nline %d experienced an edge event.", i);
@@ -651,7 +792,7 @@ public:
             // if (tipRingEdgeTrack[loopTrack].getEdgeEvent()) printf("\r\nedge event on tip/ring %d", loopTrack);
             // if(loopTrack==0)printf("\nADC val: %d",tempVal);
 
-            // Store the ADC value in the averager
+            // Store the ADC value in the average-er
             this->expPedals[loopTrack] += tempVal;
 
             // Do the same for the opther ADC
@@ -664,14 +805,23 @@ public:
             if (loopTrack > 3) {
                 loopTrack = 0;
             }
-            // Interleve reads/writes of the ADCs so that they perform their conversions (sort of) at the same time
+
+            // if edge event occurred, this will be returned to caller
+            if (tipRingEdgeTrack[loopTrack].getEdgeEvent() || tipRingEdgeTrack[loopTrack + 4].getEdgeEvent())edgeEvent_R = true;
+
+            // Interleave reads/writes of the ADCs so that they perform their conversions (sort of) at the same time
             AD_conv1->readADC_SingleEnded_NON_BLOCKING(loopTrack);
             AD_conv2->readADC_SingleEnded_NON_BLOCKING(loopTrack);
         }
+
+        return edgeEvent_R;
     }
     InputPortManager(Adafruit_ADS1015& conv1, Adafruit_ADS1015& conv2) {
         this->AD_conv1 = &conv1;
         this->AD_conv2 = &conv2;
+    }
+    bool getInputState(uint8_t trackerNum) {
+        return this->tipRingEdgeTrack[trackerNum].combSt;
     }
     Input_debounce_edge_state_tracker senseEdgeTack[8] = {
         Input_debounce_edge_state_tracker(),
@@ -695,118 +845,7 @@ public:
     };
 };
 
-/*#region: defines*/
-#define MCP23017_IODIRA 0x00   //!< I/O direction register A
-#define MCP23017_IPOLA 0x02    //!< Input polarity port register A
-#define MCP23017_GPINTENA 0x04 //!< Interrupt-on-change pins A
-#define MCP23017_DEFVALA 0x06  //!< Default value register A
-#define MCP23017_INTCONA 0x08  //!< Interrupt-on-change control register A
-#define MCP23017_IOCONA 0x0A   //!< I/O expander configuration register A
-#define MCP23017_GPPUA 0x0C    //!< GPIO pull-up resistor register A
-#define MCP23017_INTFA 0x0E    //!< Interrupt flag register A
-#define MCP23017_INTCAPA 0x10  //!< Interrupt captured value for port register A
-#define MCP23017_GPIOA 0x12    //!< General purpose I/O port register A
-#define MCP23017_OLATA 0x14    //!< Output latch register 0 A
 
-#define MCP23017_IODIRB 0x01   //!< I/O direction register B
-#define MCP23017_IPOLB 0x03    //!< Input polarity port register B
-#define MCP23017_GPINTENB 0x05 //!< Interrupt-on-change pins B
-#define MCP23017_DEFVALB 0x07  //!< Default value register B
-#define MCP23017_INTCONB 0x09  //!< Interrupt-on-change control register B
-#define MCP23017_IOCONB 0x0B   //!< I/O expander configuration register B
-#define MCP23017_GPPUB 0x0D    //!< GPIO pull-up resistor register B
-#define MCP23017_INTFB 0x0F    //!< Interrupt flag register B
-#define MCP23017_INTCAPB 0x11  //!< Interrupt captured value for port register B
-#define MCP23017_GPIOB 0x13    //!< General purpose I/O port register B
-#define MCP23017_OLATB 0x15    //!< Output latch register 0 B
-
-#define MCP23017_INT_ERR 255 //!< Interrupt error
-/*#endregion*/
-
-class MCP23017_Port_Expander {
-public:
-    uint16_t error = 0;
-    MCP23017_Port_Expander() { }
-    void begin() {
-      // set defaults!
-      // all outputs on port A and B
-        writeRegister(MCP23017_IODIRA, 0x00);
-        writeRegister(MCP23017_IODIRB, 0x00);
-        // Turn off interrupt triggers
-        writeRegister(MCP23017_GPINTENA, 0x00);
-        writeRegister(MCP23017_GPINTENB, 0x00);
-        // Turn off pull up resistors
-        writeRegister(MCP23017_GPPUA, 0x00);
-        writeRegister(MCP23017_GPPUB, 0x00);
-        uint8_t i = 0;
-
-        // input port pullups
-        for (; i < 8; i++) {
-            digitalWrite(i, 1);
-        }
-        digitalWrite(1, 0);
-
-        // outputports
-        for (; i < 16; i++) {
-            digitalWrite(i, 0);
-        }
-        
-    }
-    void pinMode(uint8_t p, uint8_t d) {
-        updateRegisterBit(p, (d == 1), MCP23017_IODIRA, MCP23017_IODIRB);
-    }
-    void writeGPIOAB(uint16_t ba) {
-        uint8_t data[3] = { MCP23017_GPIOA, uint8_t(ba & 0x00ff), uint8_t(ba >> 8) };
-        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 3, false, make_timeout_time_ms(transferTimeout_ms));
-    }
-    void digitalWrite(uint8_t pin, uint8_t d) {
-        uint8_t gpio;
-        uint8_t bit = bitForPin(pin);
-        // read the current GPIO output latches
-        uint8_t regAddr = regForPin(pin, MCP23017_OLATA, MCP23017_OLATB);
-        gpio = readRegister(regAddr);
-        // set the pin and direction
-        bitWrite(gpio, bit, d);
-        // write the new GPIO
-        regAddr = regForPin(pin, MCP23017_GPIOA, MCP23017_GPIOB);
-        writeRegister(regAddr, gpio);
-        if (pin < 8)
-            bitSet(portA_state, pin);
-        else
-            bitSet(portB_state, pin - 8);
-    }
-
-private:
-    uint8_t portA_state = 0;
-    uint8_t portB_state = 0;
-    uint32_t transferTimeout_ms = 1000;
-    uint8_t bitForPin(uint8_t pin) { return pin % 8; }
-    uint8_t regForPin(uint8_t pin, uint8_t portAaddr, uint8_t portBaddr) {
-        return (pin < 8) ? portAaddr : portBaddr;
-    }
-    uint8_t readRegister(uint8_t addr) {
-      // printf("readReg\r\n");
-        uint8_t data[1] = { addr };
-        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 1, false, make_timeout_time_ms(transferTimeout_ms));
-        i2c_read_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 1, false, make_timeout_time_ms(transferTimeout_ms));
-        return data[0];
-    }
-    void writeRegister(uint8_t regAddr, uint8_t regValue) {
-      // printf("writeReg\r\n");
-      // Write the register
-        uint8_t data[2] = { regAddr, regValue };
-        int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 2, false, make_timeout_time_ms(transferTimeout_ms));
-    }
-    void updateRegisterBit(uint8_t pin, uint8_t pValue, uint8_t portAaddr, uint8_t portBaddr) {
-        uint8_t regValue;
-        uint8_t regAddr = regForPin(pin, portAaddr, portBaddr);
-        uint8_t bit = bitForPin(pin);
-        regValue = readRegister(regAddr);
-        // set the value for the particular bit
-        bitWrite(regValue, bit, pValue);
-        writeRegister(regAddr, regValue);
-    }
-};
 
 /*#region defines and enums */
 #define INA219_READ (0x01)
@@ -815,8 +854,7 @@ private:
 #define INA219_CONFIG_BVOLTAGERANGE_MASK (0x2000) // Bus Voltage Range Mask
 #define INA219_CONFIG_GAIN_MASK (0x1800)          // Gain Mask
 #define INA219_CONFIG_BADCRES_MASK (0x0780)
-#define INA219_CONFIG_SADCRES_MASK                                             \
-  (0x0078) // Shunt ADC Resolution and Averaging Mask
+#define INA219_CONFIG_SADCRES_MASK (0x0078) // Shunt ADC Resolution and Averaging Mask
 #define INA219_CONFIG_MODE_MASK (0x0007) // Operating Mode Mask
 #define INA219_REG_SHUNTVOLTAGE (0x01)
 #define INA219_REG_BUSVOLTAGE (0x02)
