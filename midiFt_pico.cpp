@@ -41,6 +41,7 @@ void core1_entry_i2cSlave() {
                 i2c_write_raw_blocking(I2C0_PORT, 0, 1);
             }
             slaveHandler.readyToWrite = false; // reset flag
+            slaveHandler.edgeEvent_F = i2c_slave_handler::edge_not_detected;
         }
 
         // uint64_t timeDiff = absolute_time_diff_us(timeOld,timeNew);
@@ -57,46 +58,68 @@ void core1_entry_i2cSlave() {
                     {
                         uint8_t portsRequested = TeensyCommands.lastInCommand & 0x0f; // bits 0-3 indicate which ports we want to get info for.
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::InputUpdate | portsRequested | slaveHandler.edgeEvent_F;
-                        uint8_t numBytes = 1;
+                        
+                        // Set the second and third bytes to reflect the data in the state trackers for each input.
+                        // This gets sent every time in order to ensure that the packet has an easily predictable structure.
+                        uint8_t u = 0;
+                        slaveHandler.data_out[1] = 0;
+                        for (; u < 4; u++) if(inState.tipOn[u])slaveHandler.data_out[1] |= (1 << u);
+                        for (; u < 8; u++) if(inState.ringOn[u-4])slaveHandler.data_out[1] |= (1 << u);
+                        slaveHandler.data_out[2] = inState.combSt;
+
+                        uint8_t numBytes = 3;
                         for (uint8_t i = 0; i < 4; i++) {
                             // if this iteration corresponds to a requested port...
-                            if ((portsRequested >> i) & 1) {
+                            if (((portsRequested >> i) & 1) == 1) {
                                 // add data to data_out based on port mode
                                 switch (inState.mode[i]) {
                                     case input_port_modes::ExpPedalMinMax... input_port_modes::ExpPedalContinuous:
                                         {
+                                            slaveHandler.data_out[numBytes] = 0;
                                             slaveHandler.data_out[numBytes] = inState.expValue[i] & 0xff;
                                             slaveHandler.data_out[numBytes + 1] = (inState.expValue[i] >> 8) & 0xff;
                                             numBytes += 2;
                                             break;
                                         }
-                                    case input_port_modes::SingleButton... input_port_modes::DualButton:
+                                    case 255:// input_port_modes::SingleButton... input_port_modes::DualButton:
                                         {
-
                                             uint8_t u = 0;
+                                            slaveHandler.data_out[numBytes] = 0;
                                             for (; u < 4; u++) {
-                                                slaveHandler.data_out[numBytes] |= ((inState.tipOn[u] ? 1 : 0) << u);
+                                                if(inState.tipOn[u])slaveHandler.data_out[numBytes] |= (1 << u);
+                                                // slaveHandler.data_out[numBytes] |= ((inState.tipOn[u] ? 1 : 0) << u);
+                                                // printf("\ntipOn: ");
+                                                // printf((inState.tipOn[u] ? "true" : "false"));
+                                                // printf("\n");
                                             }
                                             for (; u < 8; u++) {
-                                                slaveHandler.data_out[numBytes] |= ((inState.ringOn[u] ? 1 : 0) << u);
+                                                if(inState.ringOn[u-4])slaveHandler.data_out[numBytes] |= (1 << u);
+                                                // slaveHandler.data_out[numBytes] |= ((inState.ringOn[u] ? 1 : 0) << (u + 4));
+                                                // printf("\ntipRing: ");
+                                                // printf((inState.tipOn[u] ? "true" : "false"));
+                                                // printf("\n");
                                             }
-                                            slaveHandler.data_out[numBytes + 1] = slaveHandler.data_out[numBytes];
+                                            slaveHandler.data_out[numBytes + 1] = inState.combSt;
                                             numBytes += 2;
+
                                             break;
                                         }
                                     case input_port_modes::MultiButton:
                                         {
+                                            slaveHandler.data_out[numBytes] = 0;
                                             //@todo Not sure if this will be implememtned.
                                             break;
                                         }
                                     default:
+                                    {
+                                        // slaveHandler.data_out[numBytes] = 0;
+                                        // slaveHandler.data_out[numBytes + 1] = 0;
+                                        // numBytes += 2;
+                                    }
                                         break;
                                 }
                             }
                         }
-                        // for(uint8_t i=numBytes;i<32;i++){
-                        //     slaveHandler.data_out[i]=0;
-                        // }
                         slaveHandler.numBytesToWrite = numBytes;
                         slaveHandler.readyToWrite = true;
                         break;
@@ -167,14 +190,22 @@ void core1_entry_i2cSlave() {
                     }
                 case m_core_fifo_D_types::In_TR_state:
                     {
-                        uint8_t data = fifo_in & 0xff;
+                        uint8_t data = (fifo_in & 0xff);
+                        uint8_t mask = ( fifo_in >> 8 ) & 0xff;
+                        inState.combSt = (inState.combSt & ~mask) | data;
                         for (uint8_t i = 0; i < 4; i++) {
-                            inState.tipOn[i] = (1 == (data & 1));
-                            data = data >> 1;
+                            if((mask & 1) == 1){
+                                inState.tipOn[i] = (1 == (data & 1));
+                            }
+                            data >>= 1;
+                            mask >>= 1;
                         }
                         for (uint8_t i = 0; i < 4; i++) {
-                            inState.ringOn[i] = (1 == (data & 1));
-                            data = data >> 1;
+                            if((mask & 1) == 1){
+                                inState.ringOn[i] = (1 == (data & 1));
+                            }
+                            data >>= 1;
+                            mask >>= 1;
                         }
                         break;
                     }
@@ -195,13 +226,13 @@ void core1_entry_i2cSlave() {
 
 int main() {
     stdio_init_all();
-    i2c_init(I2C0_PORT, 100 * 1000);
+    i2c_init(I2C0_PORT, 400 * 1000);
     i2c_set_slave_mode(I2C0_PORT, true, 0x5a);
     gpio_set_function(4, GPIO_FUNC_I2C);
     gpio_set_function(5, GPIO_FUNC_I2C);
     // gpio_pull_up(4);
     // gpio_pull_up(5);
-    i2c_init(I2C1_PORT, 400 * 1000);
+    i2c_init(I2C1_PORT, 700 * 1000);
     gpio_set_function(2, GPIO_FUNC_I2C);
     gpio_set_function(3, GPIO_FUNC_I2C);
     gpio_pull_up(2);
@@ -211,7 +242,7 @@ int main() {
         gpio_set_dir(i, GPIO_IN);
         gpio_pull_up(i);
     }
-    // sleep_ms(1000);
+    sleep_ms(1000);
 
     puts("starting second core\r\n");
     multicore_launch_core1(core1_entry_i2cSlave);
@@ -248,18 +279,10 @@ int main() {
     // absolute_time_t timeNew = get_absolute_time();
     // uint64_t largestTime = 0;
     while (1) {
-        // timeOld = timeNew;
-        // timeNew = get_absolute_time();
-        // float current = currentSensors[0].getCurrent_mA();
+
+        //  Here for debugging purposes, this prints a dots several times a second.
+        //  This way, it's always easy to tell if the loop is still running.
         if (counting == 0) {
-            // printf("\r\ncurrent current in ma: %f",current);
-            // for( int i = 0; i < 8; i ++){
-            //     printf("\ncurrent average for pedal%i: %i",i , ins.expPedals[i]);
-            // }
-            // uint64_t timeDiff = absolute_time_diff_us(timeOld,timeNew);
-            // if(timeDiff > largestTime)
-            //     largestTime = timeDiff;
-            // printf("time: %lld\t\tlargest:%lld\n",timeDiff,largestTime);
             countedCounter++;
             if (countedCounter == 0) {
                 printf("\n");
@@ -271,30 +294,40 @@ int main() {
         // Have the inputPortManager update all values. update() will return uint8_t based on number of inputs with edge event
         uint8_t edges = ins.update();
         if (edges > 0) { // This updates the states for all 4 input ports
+            // printf("edges: %i\n",edges);
             while (!multicore_fifo_wready()) { }
             multicore_fifo_push_blocking((m_core_fifo_D_types::EdgeEvent << 24) | edges);
         }
-
+        
+        
+        // }
+        bool buttonsSent = false;
         // Do the things depending on the current mode
         for (uint8_t port_i = 0; port_i < 4; port_i++) {
             switch (ins.modes[port_i]) {
                 case input_port_modes::Disabled:
                     {
                         // Do nothing. the port is set to disabled.
+                        printf("port dsabled\n");
                         break;
                     }
                 case input_port_modes::SingleButton ... input_port_modes::DualButton:
                     {
                         // Get combined state and
                         // send the update to the other core
-
+                        
+                        // printf("port buttons\n");
                         uint32_t fifo_out = 0;
-                        if ((ins.tipRingEdgeTrack[port_i].combSt & 0xf0) == combinedState::state_OPEN_pluggedIn) {
-                            fifo_out |= 1 << port_i;
+                        if ((ins.tipRingEdgeTrack[port_i*2].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
+                            fifo_out |= (1 << port_i);
                         }
-                        if ((ins.tipRingEdgeTrack[port_i + 4].combSt & 0xf0) == combinedState::state_OPEN_pluggedIn) {
-                            fifo_out |= 1 << (port_i + 4);
+                        if ((ins.tipRingEdgeTrack[(port_i*2) + 1].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
+                            fifo_out |= (1 << (port_i + 4));
                         }
+
+                        // create a mask for the ports we are actually sending data for. 
+                        fifo_out |= (0x0100 << port_i);
+                        fifo_out |= (0x0100 << (port_i + 4));
 
                         while (!multicore_fifo_wready()) { }
                         multicore_fifo_push_blocking((m_core_fifo_D_types::In_TR_state << 24) | fifo_out);
@@ -303,6 +336,7 @@ int main() {
                     }
                 case input_port_modes::ExpPedalContinuous:
                     {
+                        printf("port cont\n");
                         // calculate ratio for port. ratio is scaled up to avoid floating point math. 
                         // -1 at end to offset some error.
                         uint32_t ratio = (((uint32_t)ins.expPedals[(port_i * 2) + 1] * 10000) / ins.expPedals[(port_i * 2)]) - 1;
@@ -313,11 +347,13 @@ int main() {
                     }
                 case input_port_modes::ExpPedalMinMax:
                     {
+                        printf("port min max\n");
                         // update the other core with 1.0 or 0.0 ratio value depending on wether the pedal has hit min/max threshhold.
                         break;
                     }
                 case input_port_modes::MultiButton:
                     {
+                        printf("port multi\n");
                         // @todo not sure if this will be implemented.
                         break;
                     }
@@ -358,7 +394,7 @@ int main() {
                             outs[i].state.Ring_on_b = (TR_states&1)==1;
                             outs[i].state.Tip_on_b = (TR_states>>4)&1==1;
                             TR_states >>= 1;
-                            outs[i].UpdateOutput();
+                            outs[i].UpdateOutput(); 
                         }
                         break;
                     }

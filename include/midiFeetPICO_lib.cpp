@@ -25,15 +25,17 @@
 // #include <string.h>
 
 uint8_t InputPortManager::update() {
-        // value to return
-    uint8_t edgeEvent_R = false;
+    // value to return
+    uint8_t edgeEvent_R = 0;
 
     // check sense lines to see if a port has something plugged in or not.
     // if something was plugged in now and wasn't before, see if the mode for the
     // port is auto, and if so suss out the mode.
-
     for (uint8_t i = 0; i < 8; i++) {
+        // read the input and send that value to the edgetracker. 
         senseEdgeTack[i] += gpio_get(8 + i);
+
+        // if this particular edge tracker has hit the threshhold of an edge evnt...
         if (senseEdgeTack[i].getEdgeEvent()) {
             printf("\r\nline %d experienced an edge event.", i);
             printf("\r\ncombst & 0xf0 : %d", senseEdgeTack[i].combSt & 0xf0);
@@ -50,10 +52,9 @@ uint8_t InputPortManager::update() {
         // Get the conversion from the ADC, compare it to a threshhold, and add the value to edgetracker.
         int16_t tempVal = AD_conv1->getLastConversionResults();
 
-        // Compare ADV value to threshhold and store a new value in the edge tracker. 
+        // Compare ADC value to threshhold and store a new value in the edge tracker. 
         tipRingEdgeTrack[loopTrack] += (tempVal < ADC_LOW_THRESHERHOLD);
-        // if (tipRingEdgeTrack[loopTrack].getEdgeEvent()) printf("\r\nedge event on tip/ring %d", loopTrack);
-        // if(loopTrack==0)printf("\nADC val: %d",tempVal);
+        // if(loopTrack==0) printf("tempVAl: %x\n",tempVal);
 
         // Store the ADC value in the average-er
         this->expPedals[loopTrack] += tempVal;
@@ -61,7 +62,6 @@ uint8_t InputPortManager::update() {
         // Do the same for the opther ADC
         tempVal = AD_conv2->getLastConversionResults();
         tipRingEdgeTrack[loopTrack + 4] += (tempVal < ADC_LOW_THRESHERHOLD);
-        // if (tipRingEdgeTrack[loopTrack + 4].getEdgeEvent()) printf("\r\nedge event on tip/ring %d", loopTrack + 4);
         this->expPedals[loopTrack + 4] += tempVal;
 
         loopTrack++;
@@ -69,17 +69,17 @@ uint8_t InputPortManager::update() {
             loopTrack = 0;
         }
 
-        // if edge event occurred, this will be returned to caller
-        if (tipRingEdgeTrack[loopTrack].getEdgeEvent() || tipRingEdgeTrack[loopTrack + 4].getEdgeEvent())edgeEvent_R = true;
+        // Count up the number of edge events that occurred on the tips and rings so it can be returned.
+        if (tipRingEdgeTrack[loopTrack].getEdgeEvent() || tipRingEdgeTrack[loopTrack + 4].getEdgeEvent())edgeEvent_R++;
 
+        // Now that we have gotten a complete A->D conversion and stored the values, lets get the next channel's data.
         // Interleave reads/writes of the ADCs so that they perform their conversions (sort of) at the same time
         AD_conv1->readADC_SingleEnded_NON_BLOCKING(loopTrack);
         AD_conv2->readADC_SingleEnded_NON_BLOCKING(loopTrack);
     }
-
+    // return count of inputs with edge event. 
     return edgeEvent_R;
 }
-
 MCP23017_Port_Expander::MCP23017_Port_Expander() { };
 void MCP23017_Port_Expander::begin() {
     // set defaults!
@@ -98,7 +98,7 @@ void MCP23017_Port_Expander::begin() {
     for (; i < 8; i++) {
         digitalWrite(i, 1);
     }
-    digitalWrite(1, 0);
+    // digitalWrite(1, 0);
 
     // outputports
     for (; i < 16; i++) {
@@ -108,7 +108,6 @@ void MCP23017_Port_Expander::begin() {
 void MCP23017_Port_Expander::pinMode(uint8_t p, uint8_t d) {
     updateRegisterBit(p, (d == 1), MCP23017_IODIRA, MCP23017_IODIRB);
 }
-
 void MCP23017_Port_Expander::writeGPIOAB(uint16_t ba) {
     uint8_t data[3] = { MCP23017_GPIOA, uint8_t(ba & 0x00ff), uint8_t(ba >> 8) };
     int er = i2c_write_blocking_until(i2c1, I2CADDR_PORT_EXPANDER, data, 3, false, make_timeout_time_ms(transferTimeout_ms));
@@ -155,11 +154,10 @@ void MCP23017_Port_Expander::updateRegisterBit(uint8_t pin, uint8_t pValue, uint
     bitWrite(regValue, bit, pValue);
     writeRegister(regAddr, regValue);
 }
-
 Adafruit_ADS1015::Adafruit_ADS1015(uint8_t i2c_addr) {
     m_bitShift = 4;
     m_gain = GAIN_ONE; /* +/- 6.144V range (limited to VDD +0.3V max!) */
-    m_dataRate = RATE_ADS1115_860SPS;
+    m_dataRate = RATE_ADS1015_3300SPS;
     address = i2c_addr;
     readADC_SingleEnded_NON_BLOCKING(0);
 }
@@ -195,9 +193,6 @@ int16_t Adafruit_ADS1015::readADC_SingleEnded_BLOCKING(uint8_t channel) {
     while (!conversionComplete()) { }
     return getLastConversionResults();
 }
-
-
-
 void Adafruit_ADS1015::readADC_SingleEnded_NON_BLOCKING(uint8_t channel) {
     if (channel > 3) {
         return;
@@ -228,12 +223,6 @@ void Adafruit_ADS1015::readADC_SingleEnded_NON_BLOCKING(uint8_t channel) {
     config |= ADS1X15_REG_CONFIG_OS_SINGLE;
     writeRegister(ADS1X15_REG_POINTER_CONFIG, config);
 }
-
-
-
-
-
-
 int16_t Adafruit_ADS1015::getLastConversionResults() {
   // Read the conversion results
     uint16_t res = readRegister(ADS1X15_REG_POINTER_CONVERT);
@@ -243,16 +232,15 @@ void Adafruit_ADS1015::setGain(adsGain_t gain) { m_gain = gain; }
 adsGain_t Adafruit_ADS1015::getGain() { return m_gain; }
 void Adafruit_ADS1015::setDataRate(uint16_t rate) { m_dataRate = rate; }
 uint16_t Adafruit_ADS1015::getDataRate() { return m_dataRate; }
-
 bool Adafruit_ADS1015::conversionComplete() {
     bool ready = (readRegister(ADS1X15_REG_POINTER_CONFIG) & 0x8000) != 0;
     if (ready) {
         mostRecentConversionChannel = readInProgressChannel;
         readingInProgress = false;
+        // printf(".");
     }
     return ready;
 }
-
 bool Adafruit_ADS1015::readADC_SingleEnded_nonBlocking_Async(uint8_t channel) {
     if (conversionComplete()) {
         readingInProgress = true;
@@ -263,11 +251,9 @@ bool Adafruit_ADS1015::readADC_SingleEnded_nonBlocking_Async(uint8_t channel) {
         return false;
     }
 }
-
 bool readingInProgress = false;
 int readInProgressChannel = -1;
 uint8_t mostRecentConversionChannel = 0;
-
 void Adafruit_ADS1015::writeRegister(uint8_t reg, uint16_t value) {
     buffer[0] = reg;
     buffer[1] = value >> 8;
@@ -280,9 +266,6 @@ uint16_t Adafruit_ADS1015::readRegister(uint8_t reg) {
     i2c_read_blocking_until(i2c1, address, buffer, 2, false, make_timeout_time_ms(100));
     return ((buffer[0] << 8) | buffer[1]);
 }
-
-
-
 i2c_slave_handler::i2c_slave_handler() { }
 void i2c_slave_handler::readDataIn(uint8_t numBytes, bool flush) {
     if (numBytes == 0) { return; } // Reading 0 bytes in does nothing.
@@ -300,10 +283,7 @@ void i2c_slave_handler::readDataIn(uint8_t numBytes, bool flush) {
         }
     }
 }
-
-
 TEENSY_I2C::TEENSY_I2C(i2c_slave_handler& handler) { this->handler = &handler; }
-
 uint8_t TEENSY_I2C::getReadLength() {
       // command<TeensyCommands.numOf_T2P_commands?TeensyCommands.messageSize[command]:0;
     this->lastInCommand = handler->data_in[0];
@@ -313,8 +293,6 @@ uint8_t TEENSY_I2C::getReadLength() {
         return 0;
     }
 }
-
-
 OutputPortManager::OutputPortManager(MCP23017_Port_Expander& exp, uint8_t _id) :expander(&exp), id(_id) { }
 void OutputPortManager::UpdateOutput() {
     printf("writing to port# %i\t value:%s\n", (this->id * 2) + 8, this->state.Tip_on_b ? "true" : "false");
@@ -322,32 +300,28 @@ void OutputPortManager::UpdateOutput() {
     expander->digitalWrite((this->id * 2) + 8, this->state.Tip_on_b ? 1 : 0);
     expander->digitalWrite((this->id * 2) + 9, this->state.Ring_on_b ? 1 : 0);
 }
-
 InputPortManager::InputPortManager(Adafruit_ADS1015& conv1, Adafruit_ADS1015& conv2) {
     this->AD_conv1 = &conv1;
     this->AD_conv2 = &conv2;
 }
-
 InputPortManager::Input_debounce_edge_state_tracker::Input_debounce_edge_state_tracker() { }
-
 uint8_t InputPortManager::Input_debounce_edge_state_tracker::countBits() {
     uint32_t temp = this->trackLSB;
     uint8_t count = 0;
-    for (uint8_t i = 0; i < 32; i++) {
+    
+    for (uint8_t i = 0; i < 8; i++) {
         count += (temp & 1);
         temp = (temp >> 1);
     }
-    temp = this->trackMSB;
-    for (uint8_t i = 0; i < 32; i++) {
-        count += (temp & 1);
-        temp = (temp >> 1);
-    }
+    // temp = this->trackMSB;
+    // for (uint8_t i = 0; i < 32; i++) {
+    //     count += (temp & 1);
+    //     temp = (temp >> 1);
+    // }
     return count;
 }
-
-
 void InputPortManager::Input_debounce_edge_state_tracker::updateEdgeTracker(bool val) {
-    this->trackMSB = (this->trackMSB << 1) + (this->trackLSB >> 31); // Shift trackMSB to the left and add the MSB of trackLSB to it
+    // this->trackMSB = (this->trackMSB << 1) + (this->trackLSB >> 31); // Shift trackMSB to the left and add the MSB of trackLSB to it
     this->trackLSB = (this->trackLSB << 1) + (val ? 1 : 0); // shift in the newest bit
     uint8_t numBitsSet = countBits();
     if (numBitsSet > this->highThresh) {
@@ -363,7 +337,6 @@ void InputPortManager::Input_debounce_edge_state_tracker::updateEdgeTracker(bool
         }
     }
 }
-
 void InputPortManager::Input_debounce_edge_state_tracker::updateEdgeTracker(bool val, uint8_t mult) {
     if (mult > 16)
         mult = 16;
@@ -371,7 +344,6 @@ void InputPortManager::Input_debounce_edge_state_tracker::updateEdgeTracker(bool
         updateEdgeTracker(val);
     }
 }
-
 bool InputPortManager::Input_debounce_edge_state_tracker::getEdgeEvent() {
     if (this->edgeEvent) {
         this->edgeEvent = false;
@@ -379,25 +351,18 @@ bool InputPortManager::Input_debounce_edge_state_tracker::getEdgeEvent() {
     }
     return false;
 }
-
 uint8_t InputPortManager::detect(uint8_t port) {
       //@todo Need to implement auto sensing.
     return 0;
 }
-
-
-
 bool InputPortManager::getInputState(uint8_t trackerNum) {
     return this->tipRingEdgeTrack[trackerNum].combSt;
 }
-
-
 Adafruit_INA219::Adafruit_INA219(uint8_t addr) {
     ina219_i2caddr = addr;
     ina219_currentDivider_mA = 0;
     ina219_powerMultiplier_mW = 0.0f;
 }
-
 void Adafruit_INA219::setCalibration_16V_400mA() {
     ina219_calValue = 8192;
     // Set multipliers to convert raw current/power values
@@ -416,7 +381,6 @@ void Adafruit_INA219::setCalibration_16V_400mA() {
     data[2] = config >> 8;
     _success = 2 == i2c_write_blocking_until(i2c1, this->ina219_i2caddr, data, 3, true, make_timeout_time_ms(5));
 }
-
 float Adafruit_INA219::getBusVoltage_V() {
     int16_t value = getBusVoltage_raw();
     return value * 0.001;
@@ -436,8 +400,7 @@ float Adafruit_INA219::getPower_mW() {
     valueDec *= ina219_powerMultiplier_mW;
     return valueDec;
 }
-bool Adafruit_INA219::success() { return _success; }
-
+bool Adafruit_INA219::success() { return this->_success; }
 void Adafruit_INA219::init() {
       // Set chip to large range config values to start
     setCalibration_16V_400mA();

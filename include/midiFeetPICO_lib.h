@@ -29,8 +29,8 @@
 #define I2CADDR_CURR_SENS2 0x41
 #define I2CADDR_CURR_SENS3 0x44
 #define I2CADDR_CURR_SENS4 0x45
-#define EDGETRACK_HIGH_THRESH 48
-#define EDGETRACK_LOW_THRESH 16
+#define EDGETRACK_HIGH_THRESH 7
+#define EDGETRACK_LOW_THRESH 1
 #define ALL_TOPS_SENSE_INPUT_MASK 0x55
 #define ALL_BTNS_SENSE_INPUT_MASK 0xAA
 #define bitRead(value, bit) (((value) >> (bit)) & 0x01)
@@ -209,7 +209,7 @@ enum combinedState {
     state_CLOSED_buttonNotPressed = state_CLOSED_unplugged,
 };
 enum m_core_fifo_D_types {
-    In_TR_state = 0x01, // 0xDDNNNNTR - DD = this d_type value, NNNN = ntohing, dont care, T = Tip states, R = ring states
+    In_TR_state = 0x01, // 0xDDNNMMTR - DD = this d_type value, NN = ntohing, dont care, MM = port mask, T = Tip states, R = ring states
     expVal = 0x02, // 0xDDBBVVVV - DD = this d_type value, BB = input port number, and VVVV = 16 value
     setInPortMode = 0x03, // 0xDDNN1234 - DD=this dtype, NN=dont care, 1234=nibble for each port
     setOutPortMode = 0x04, // 0xDDNN1234 - DD=this dtype, NN=dont care, 1234=nibble for each port
@@ -245,8 +245,8 @@ private:
     private:
         bool edgeEvent = false;
         uint64_t eventTime;
-        uint32_t trackLSB = 0;
-        uint32_t trackMSB = 0;
+        uint8_t trackLSB = 0;
+        // uint16_t trackMSB = 0;
         uint8_t countBits();
         uint8_t highThresh = EDGETRACK_HIGH_THRESH;
         uint8_t lowThresh = EDGETRACK_LOW_THRESH;
@@ -458,7 +458,7 @@ struct TEENSY_I2C {
 
 struct InputPortState {
     input_port_modes mode[4] = {
-        input_port_modes::Disabled,
+        input_port_modes::DualButton,
         input_port_modes::Disabled,
         input_port_modes::Disabled,
         input_port_modes::Disabled,
@@ -466,6 +466,7 @@ struct InputPortState {
     uint16_t expValue[4] = { 0, 0, 0, 0 };
     bool tipOn[4];
     bool ringOn[4];
+    uint8_t combSt = 0;
 };
 
 
