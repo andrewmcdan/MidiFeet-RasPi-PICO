@@ -54,7 +54,7 @@ void core1_entry_i2cSlave() {
             // do something with the data
             // @label  Teensy2Pico commands switch/case
             switch (TeensyCommands.lastInCommand) {
-                case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate... 255:
+                case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate... 254:
                     {
                         uint8_t portsRequested = TeensyCommands.lastInCommand & 0x0f; // bits 0-3 indicate which ports we want to get info for.
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::InputUpdate | portsRequested | slaveHandler.edgeEvent_F;
@@ -274,7 +274,7 @@ int main() {
         currentSensors[i].setCalibration_16V_400mA();
     }
     countTo64 counting = countTo64(0, 100);
-    countTo64 countedCounter;
+    countTo64 countedCounter; 
     // absolute_time_t timeOld = get_absolute_time();
     // absolute_time_t timeNew = get_absolute_time();
     // uint64_t largestTime = 0;
@@ -341,14 +341,14 @@ int main() {
                         // -1 at end to offset some error.
                         uint32_t ratio = (((uint32_t)ins.expPedals[(port_i * 2) + 1] * 10000) / ins.expPedals[(port_i * 2)]) - 1;
                         // Update the other core with a ratio value everytime
-                        if (counting == 0)
-                            // printf("\nratio: %d\n",ratio);
-                            break;
+                        // @todo 
+                        break;
                     }
                 case input_port_modes::ExpPedalMinMax:
                     {
                         printf("port min max\n");
                         // update the other core with 1.0 or 0.0 ratio value depending on wether the pedal has hit min/max threshhold.
+                        // @todo 
                         break;
                     }
                 case input_port_modes::MultiButton:
@@ -359,7 +359,7 @@ int main() {
                     }
             }
         }
-
+        
         // outs[0].state = OutputPortManager::OutPortState::out_port_state::Off;
 
         // check the multicore fifo for data...
@@ -372,12 +372,20 @@ int main() {
             switch (d_type) {
                 case m_core_fifo_D_types::setInPortMode:
                     {
-                        // uint8_t 
-                        // ins.modes[0] = newmode;
+                        //@todo 
+                        uint16_t modeData = fifo_in &0xffff;
+                        for(uint8_t i = 0; i < 4; i++){
+                            ins.modes[i] = (input_port_modes)((modeData >> (i * 4)) & 0x000f);
+                        }
                         break;
                     }
                 case m_core_fifo_D_types::setOutPortMode:
                     {
+                        //@todo 
+                        uint16_t modeData = fifo_in &0xffff;
+                        for(uint8_t i = 0; i < 4; i++){
+                            outs[i].mode = (OutputPortManager::out_port_modes)((modeData >> (i * 4)) & 0x000f);
+                        }
                         break;
                     }
                 case m_core_fifo_D_types::setUpdateRate:
