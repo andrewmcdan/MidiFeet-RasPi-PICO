@@ -57,6 +57,12 @@ void core1_entry_i2cSlave() {
                 case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate... 254:
                     {
                         uint8_t portsRequested = TeensyCommands.lastInCommand & 0x0f; // bits 0-3 indicate which ports we want to get info for.
+                        printf("eventMask: %02x\n",inState.eventMask);
+                        slaveHandler.data_out[2] = inState.eventMask;
+                        if(inState.eventMask > 0){
+                            slaveHandler.edgeEvent_F = i2c_slave_handler::edge_detected;
+                            inState.eventMask = 0;
+                        }
                         slaveHandler.data_out[0] = TEENSY_I2C::P2T_REPONSE::InputUpdate | portsRequested | slaveHandler.edgeEvent_F;
                         
                         // Set the second and third bytes to reflect the data in the state trackers for each input.
@@ -65,7 +71,7 @@ void core1_entry_i2cSlave() {
                         slaveHandler.data_out[1] = 0;
                         for (; u < 4; u++) if(inState.tipOn[u])slaveHandler.data_out[1] |= (1 << u);
                         for (; u < 8; u++) if(inState.ringOn[u-4])slaveHandler.data_out[1] |= (1 << u);
-                        slaveHandler.data_out[2] = inState.combSt;
+                        // slaveHandler.data_out[2] = inState.eventMask;
 
                         uint8_t numBytes = 3;
                         for (uint8_t i = 0; i < 4; i++) {
@@ -99,7 +105,7 @@ void core1_entry_i2cSlave() {
                                                 // printf((inState.tipOn[u] ? "true" : "false"));
                                                 // printf("\n");
                                             }
-                                            slaveHandler.data_out[numBytes + 1] = inState.combSt;
+                                            slaveHandler.data_out[numBytes + 1] = inState.eventMask;
                                             numBytes += 2;
 
                                             break;
@@ -190,9 +196,14 @@ void core1_entry_i2cSlave() {
                     }
                 case m_core_fifo_D_types::In_TR_state:
                     {
+                        // get the data byte from
                         uint8_t data = (fifo_in & 0xff);
+                        // get the mask byte
                         uint8_t mask = ( fifo_in >> 8 ) & 0xff;
-                        inState.combSt = (inState.combSt & ~mask) | data;
+                        if (mask > 0){
+                            printf("data: %02x\tmask: %02x\n", data, mask);
+                            inState.eventMask = mask;
+                        }
                         for (uint8_t i = 0; i < 4; i++) {
                             if((mask & 1) == 1){
                                 inState.tipOn[i] = (1 == (data & 1));
@@ -282,14 +293,14 @@ int main() {
 
         //  Here for debugging purposes, this prints a dots several times a second.
         //  This way, it's always easy to tell if the loop is still running.
-        if (counting == 0) {
-            countedCounter++;
-            if (countedCounter == 0) {
-                printf("\n");
-            }
-            printf(".");
-        }
-        counting++;
+        // if (counting == 0) {
+        //     countedCounter++;
+        //     if (countedCounter == 0) {
+        //         printf("\n");
+        //     }
+        //     printf(".");
+        // }
+        // counting++;
 
         // Have the inputPortManager update all values. update() will return uint8_t based on number of inputs with edge event
         uint8_t edges = ins.update();
@@ -308,7 +319,7 @@ int main() {
                 case input_port_modes::Disabled:
                     {
                         // Do nothing. the port is set to disabled.
-                        printf("port dsabled\n");
+                        // printf("port dsabled\n");
                         break;
                     }
                 case input_port_modes::SingleButton ... input_port_modes::DualButton:
@@ -316,18 +327,21 @@ int main() {
                         // Get combined state and
                         // send the update to the other core
                         
-                        // printf("port buttons\n");
+                        // fifo_out least significant byte is data
+                        // fifo_out next byte is mask
                         uint32_t fifo_out = 0;
-                        if ((ins.tipRingEdgeTrack[port_i*2].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
-                            fifo_out |= (1 << port_i);
+                        if(ins.tipRingEdgeTrack[port_i * 2].getEdgeEvent()){
+                            fifo_out |= (1 << (port_i + 8));
+                            if ((ins.tipRingEdgeTrack[port_i * 2].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
+                                fifo_out |= (1 << port_i);
+                            }
                         }
-                        if ((ins.tipRingEdgeTrack[(port_i*2) + 1].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
-                            fifo_out |= (1 << (port_i + 4));
+                        if(ins.tipRingEdgeTrack[(port_i * 2) + 1].getEdgeEvent()){  
+                            fifo_out |= (1 << (port_i + 12));
+                            if ((ins.tipRingEdgeTrack[(port_i * 2) + 1].combSt & 0xf0) == combinedState::state_OPEN_buttonPressed) {
+                                fifo_out |= (1 << (port_i + 4));
+                            }
                         }
-
-                        // create a mask for the ports we are actually sending data for. 
-                        fifo_out |= (0x0100 << port_i);
-                        fifo_out |= (0x0100 << (port_i + 4));
 
                         while (!multicore_fifo_wready()) { }
                         multicore_fifo_push_blocking((m_core_fifo_D_types::In_TR_state << 24) | fifo_out);

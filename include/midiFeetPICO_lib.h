@@ -220,11 +220,11 @@ enum m_core_fifo_D_types {
 enum input_port_modes {
     SingleButton = 0x00,
     DualButton = 0x01,
-    ExpPedalMinMax = 0x03,
-    ExpPedalContinuous = 0x04,
-    MultiButton = 0x05,
-    AutoMode = 0x0f, // will try to automatically determine if device connected is exp pedal, single or dual button.
-    Disabled = 0xff
+    ExpPedalMinMax = 0x02,
+    ExpPedalContinuous = 0x03,
+    MultiButton = 0x04,
+    AutoMode = 0x05, // will try to automatically determine if device connected is exp pedal, single or dual button.
+    Disabled = 0x06
 };
 /*#endregion*/
 
@@ -467,6 +467,7 @@ struct InputPortState {
     bool tipOn[4];
     bool ringOn[4];
     uint8_t combSt = 0;
+    uint8_t eventMask = 0;
 };
 
 

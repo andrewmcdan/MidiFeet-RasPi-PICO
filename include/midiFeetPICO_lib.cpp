@@ -35,7 +35,7 @@ uint8_t InputPortManager::update() {
         // read the input and send that value to the edgetracker. 
         senseEdgeTack[i] += gpio_get(8 + i);
 
-        // if this particular edge tracker has hit the threshhold of an edge evnt...
+        // if this particular edge tracker has hit the threshhold of an edge event...
         if (senseEdgeTack[i].getEdgeEvent()) {
             printf("\r\nline %d experienced an edge event.", i);
             printf("\r\ncombst & 0xf0 : %d", senseEdgeTack[i].combSt & 0xf0);
