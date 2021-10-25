@@ -342,7 +342,6 @@ public:
     void pinMode(uint8_t p, uint8_t d);
     void writeGPIOAB(uint16_t ba);
     void digitalWrite(uint8_t pin, uint8_t d);
-
 private:
     uint8_t portA_state = 0;
     uint8_t portB_state = 0;
@@ -459,9 +458,9 @@ struct TEENSY_I2C {
 struct InputPortState {
     input_port_modes mode[4] = {
         input_port_modes::DualButton,
-        input_port_modes::Disabled,
-        input_port_modes::Disabled,
-        input_port_modes::Disabled,
+        input_port_modes::DualButton,
+        input_port_modes::DualButton,
+        input_port_modes::DualButton,
     };
     uint16_t expValue[4] = { 0, 0, 0, 0 };
     bool tipOn[4];

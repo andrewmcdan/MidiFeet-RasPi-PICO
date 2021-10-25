@@ -54,10 +54,10 @@ void core1_entry_i2cSlave() {
             // do something with the data
             // @label  Teensy2Pico commands switch/case
             switch (TeensyCommands.lastInCommand) {
-                case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate... 254:
+                case TEENSY_I2C::T2P_COMMMANDS::RequestInputUpdate ... 254:
                     {
                         uint8_t portsRequested = TeensyCommands.lastInCommand & 0x0f; // bits 0-3 indicate which ports we want to get info for.
-                        printf("eventMask: %02x\n",inState.eventMask);
+                        // printf("eventMask: %02x \t portsRq'd: %02x\n",inState.eventMask, portsRequested);
                         slaveHandler.data_out[2] = inState.eventMask;
                         if(inState.eventMask > 0){
                             slaveHandler.edgeEvent_F = i2c_slave_handler::edge_detected;
@@ -75,16 +75,19 @@ void core1_entry_i2cSlave() {
 
                         uint8_t numBytes = 3;
                         for (uint8_t i = 0; i < 4; i++) {
+                            // printf("2");
                             // if this iteration corresponds to a requested port...
                             if (((portsRequested >> i) & 1) == 1) {
                                 // add data to data_out based on port mode
+                                // printf("1");
                                 switch (inState.mode[i]) {
-                                    case input_port_modes::ExpPedalMinMax... input_port_modes::ExpPedalContinuous:
+                                    case input_port_modes::ExpPedalMinMax ... input_port_modes::ExpPedalContinuous:
                                         {
-                                            slaveHandler.data_out[numBytes] = 0;
-                                            slaveHandler.data_out[numBytes] = inState.expValue[i] & 0xff;
-                                            slaveHandler.data_out[numBytes + 1] = (inState.expValue[i] >> 8) & 0xff;
-                                            numBytes += 2;
+                                            // printf("3");
+                                            // slaveHandler.data_out[numBytes] = 0;
+                                            slaveHandler.data_out[numBytes] = inState.expValue[i];
+                                            // slaveHandler.data_out[numBytes + 1] = (inState.expValue[i] >> 8) & 0xff;
+                                            numBytes++;//= 2;
                                             break;
                                         }
                                     case 255:// input_port_modes::SingleButton... input_port_modes::DualButton:
@@ -192,6 +195,7 @@ void core1_entry_i2cSlave() {
                     {
                         uint8_t portNum = (fifo_in >> 16) & 0xff;
                         inState.expValue[portNum] = fifo_in & 0xffff;
+                        // printf("inState.expValue[%d]: %d\n", portNum, inState.expValue[portNum]);
                         break;
                     }
                 case m_core_fifo_D_types::In_TR_state:
@@ -201,7 +205,7 @@ void core1_entry_i2cSlave() {
                         // get the mask byte
                         uint8_t mask = ( fifo_in >> 8 ) & 0xff;
                         if (mask > 0){
-                            printf("data: %02x\tmask: %02x\n", data, mask);
+                            // printf("data: %02x\tmask: %02x\n", data, mask);
                             inState.eventMask = mask;
                         }
                         for (uint8_t i = 0; i < 4; i++) {
@@ -319,7 +323,7 @@ int main() {
                 case input_port_modes::Disabled:
                     {
                         // Do nothing. the port is set to disabled.
-                        // printf("port dsabled\n");
+                        printf("port disabled\n");
                         break;
                     }
                 case input_port_modes::SingleButton ... input_port_modes::DualButton:
@@ -329,6 +333,7 @@ int main() {
                         
                         // fifo_out least significant byte is data
                         // fifo_out next byte is mask
+                        // printf("port single or dual\n");
                         uint32_t fifo_out = 0;
                         if(ins.tipRingEdgeTrack[port_i * 2].getEdgeEvent()){
                             fifo_out |= (1 << (port_i + 8));
@@ -350,12 +355,20 @@ int main() {
                     }
                 case input_port_modes::ExpPedalContinuous:
                     {
-                        printf("port cont\n");
+                        // printf("port cont\n");
                         // calculate ratio for port. ratio is scaled up to avoid floating point math. 
                         // -1 at end to offset some error.
-                        uint32_t ratio = (((uint32_t)ins.expPedals[(port_i * 2) + 1] * 10000) / ins.expPedals[(port_i * 2)]) - 1;
+                        // printf("expPedals[(%d * 2) + 1]: %d\n", port_i, ins.expPedals[(port_i * 2) + 1]);
+                        // printf("expPedals[(%d * 2)]: %d\n", port_i, ins.expPedals[(port_i * 2)]);
+                        // uint32_t ratio = (ins.expPedals[(port_i * 2) + 1]) / ins.expPedals[(port_i * 2)] - 1;
+
+                        uint32_t CC_Value = ((ins.expPedals[(port_i * 2)] * 142) / (ins.expPedals[(port_i * 2) + 1] - 1));
+                        if(CC_Value > 127){ CC_Value = 127; }
+
                         // Update the other core with a ratio value everytime
-                        // @todo 
+                        // printf("CC_Value: %d\n", CC_Value);
+                        while (!multicore_fifo_wready()) { }
+                        multicore_fifo_push_blocking((m_core_fifo_D_types::expVal <<24) | (port_i << 16) | CC_Value);
                         break;
                     }
                 case input_port_modes::ExpPedalMinMax:
@@ -387,6 +400,7 @@ int main() {
                 case m_core_fifo_D_types::setInPortMode:
                     {
                         //@todo 
+                        printf("set input port mode");
                         uint16_t modeData = fifo_in &0xffff;
                         for(uint8_t i = 0; i < 4; i++){
                             ins.modes[i] = (input_port_modes)((modeData >> (i * 4)) & 0x000f);

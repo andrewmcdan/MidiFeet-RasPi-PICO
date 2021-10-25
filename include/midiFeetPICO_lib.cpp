@@ -98,6 +98,11 @@ void MCP23017_Port_Expander::begin() {
     for (; i < 8; i++) {
         digitalWrite(i, 1);
     }
+
+    // for (i = 1; i < 8; i+=2) {
+    //     digitalWrite(i, 0);
+    // }
+
     // digitalWrite(1, 0);
 
     // outputports
@@ -324,12 +329,12 @@ void InputPortManager::Input_debounce_edge_state_tracker::updateEdgeTracker(bool
     // this->trackMSB = (this->trackMSB << 1) + (this->trackLSB >> 31); // Shift trackMSB to the left and add the MSB of trackLSB to it
     this->trackLSB = (this->trackLSB << 1) + (val ? 1 : 0); // shift in the newest bit
     uint8_t numBitsSet = countBits();
-    if (numBitsSet > this->highThresh) {
+    if (numBitsSet == this->highThresh) {
         if (combSt >= combinedState::state_CLOSED_unplugged) { // rising edge occurred
             combSt = combinedState::state_OPEN_pluggedIn | combinedState::risingEdgeEvent;
             edgeEvent = true;
         }
-    } else if (numBitsSet < this->lowThresh) {
+    } else if (numBitsSet == this->lowThresh) {
         if ((combSt & 0xf0) <=
             combinedState::state_OPEN_pluggedIn) { // falling edge occurred
             combSt = combinedState::state_CLOSED_unplugged | combinedState::fallingEdgeEvent;

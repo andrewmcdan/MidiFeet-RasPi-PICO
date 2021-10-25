@@ -9,7 +9,7 @@ project(i2c_slave_test)
 
 pico_sdk_init()
 
-add_executable(i2c_slave_test midiFt_pico.cpp include/midiFeetPICO_lib)
+add_executable(i2c_slave_test midiFt_pico.cpp include/midiFeetPICO_lib.cpp)
 
 target_link_libraries(i2c_slave_test 
 pico_stdlib 
